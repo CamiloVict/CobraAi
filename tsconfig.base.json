@@ -13,8 +13,14 @@
     "noUncheckedIndexedAccess": true,
     "baseUrl": ".",
     "paths": {
-      "@renova/db": ["packages/db/src"],
-      "@renova/shared": ["packages/shared/src"]
+      "@cobrai/compliance": ["packages/compliance/src"],
+      "@cobrai/db": ["packages/db/src"],
+      "@cobrai/test-utils": ["packages/test-utils/src"],
+      "@cobrai/ports": ["packages/ports/src"],
+      "@cobrai/types": ["packages/types/src"],
+      "@cobrai/utils": ["packages/utils/src"],
+      "@cobrai/kafka": ["packages/kafka/src"],
+      "@cobrai/ui": ["packages/ui/src"]
     }
   }
 }

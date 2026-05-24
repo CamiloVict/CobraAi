@@ -1,5 +1,5 @@
 {
-  "name": "renova",
+  "name": "cobrai",
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@11.1.2",
@@ -12,9 +12,24 @@
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
+    "test:e2e": "pnpm db:generate && turbo run test:e2e",
+    "playwright": "pnpm --filter @cobrai/web exec playwright test",
+    "qa": "bash scripts/qa-check.sh",
     "format": "prettier --write .",
-    "db:generate": "pnpm --filter @renova/db db:generate",
-    "db:migrate": "pnpm --filter @renova/db db:migrate"
+    "infra:up": "docker compose -f infra/docker/docker-compose.yml up -d",
+    "infra:down": "docker compose -f infra/docker/docker-compose.yml down",
+    "infra:logs": "docker compose -f infra/docker/docker-compose.yml logs -f",
+    "db:generate": "pnpm --filter @cobrai/db db:generate",
+    "db:migrate": "pnpm --filter @cobrai/db db:migrate",
+    "db:seed": "pnpm --filter @cobrai/db db:seed",
+    "db:seed:align": "pnpm --filter @cobrai/db db:seed:align",
+    "db:studio": "pnpm --filter @cobrai/db db:studio",
+    "gateway:dev": "pnpm --filter @cobrai/api-gateway dev",
+    "web:dev": "pnpm --filter @cobrai/web dev",
+    "front": "pnpm --filter @cobrai/web dev",
+    "portfolios:dev": "pnpm --filter @cobrai/service-portfolios dev",
+    "workflows:dev": "pnpm --filter @cobrai/service-workflows dev",
+    "services": "turbo run dev --filter=@cobrai/api-gateway --filter=@cobrai/service-portfolios --filter=@cobrai/service-workflows --filter=@cobrai/service-notifications --filter=@cobrai/service-payments"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -35,7 +50,12 @@
       "@nestjs/core",
       "@prisma/client",
       "@prisma/engines",
-      "prisma"
+      "prisma",
+      "cpu-features",
+      "esbuild",
+      "msgpackr-extract",
+      "protobufjs",
+      "ssh2"
     ]
   }
 }

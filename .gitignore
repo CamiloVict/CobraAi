@@ -20,5 +20,8 @@ out
 playwright-report
 test-results
 
+# Docker volumes (local)
+infra/docker/.data
+
 *.log
 .DS_Store
