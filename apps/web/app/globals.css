@@ -2,8 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+@import "./landing.css";
+
 :root {
   color-scheme: light;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 .dark {

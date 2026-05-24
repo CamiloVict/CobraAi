@@ -6,12 +6,16 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        cobrai: {
-          bg: "#FAFAFA",
-          dark: "#0A0806",
+        cobra: {
+          bg: "#080604",
+          bg2: "#0F0B07",
+          coral: "#D85A30",
+          teal: "#1D9E75",
+          amber: "#EF9F27",
           accent: "#D85A30",
           positive: "#0F6E56",
-          danger: "#A32D2D"
+          danger: "#A32D2D",
+          dark: "#0A0806"
         }
       }
     }

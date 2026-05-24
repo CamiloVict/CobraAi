@@ -413,13 +413,11 @@ function QuarterTabs({
   activeQuarter: string | null;
   onQuarterChange: (quarter: string | null) => void;
 }) {
-  return (
-    <motionPortfolioQuarterTabsInner
-      activeQuarter={activeQuarter}
-      onQuarterChange={onQuarterChange}
-      quarters={quarters}
-    />
-  );
+  return motionPortfolioQuarterTabsInner({
+    activeQuarter,
+    onQuarterChange,
+    quarters
+  });
 }
 
 function motionPortfolioQuarterTabsInner({

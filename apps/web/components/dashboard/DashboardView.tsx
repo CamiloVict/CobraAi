@@ -55,7 +55,7 @@ export function DashboardView() {
         <p className="mt-1 text-sm text-slate-500">
           Vista ejecutiva de cartera y riesgo
         </p>
-        <motionDashboardTabBar tab={tab} onTabChange={setTab} />
+        {motionDashboardTabBar({ tab, onTabChange: setTab })}
       </header>
 
       {tab === "projection" ? (

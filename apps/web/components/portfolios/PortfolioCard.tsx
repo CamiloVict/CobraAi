@@ -48,7 +48,7 @@ export function PortfolioCard({ portfolio }: { portfolio: Portfolio }) {
   return (
     <article className="rounded-xl border border-slate-200 bg-white p-5 transition hover:border-[#D85A30]/40 dark:border-slate-800 dark:bg-slate-900">
       <div className="flex items-start justify-between gap-3">
-        <motionCardTitle portfolio={portfolio} />
+        {motionCardTitle({ portfolio })}
       </div>
 
       <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
@@ -71,7 +71,7 @@ export function PortfolioCard({ portfolio }: { portfolio: Portfolio }) {
       {statsQuery.isLoading ? (
         <div className="mt-4 space-y-2 border-t border-slate-100 pt-4 dark:border-slate-800">
           <div className="h-3 w-36 animate-pulse rounded bg-slate-100 dark:bg-slate-800" />
-          <motionSkeletonRows />
+          {motionSkeletonRows()}
         </div>
       ) : showPipeline ? (
         <section className="mt-4 border-t border-slate-100 pt-4 dark:border-slate-800">

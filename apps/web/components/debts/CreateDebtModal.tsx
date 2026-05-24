@@ -122,23 +122,23 @@ export function CreateDebtModal({
           ⚙ Opciones de crédito diferido
         </button>
 
-        {expanded ? (
-          <motionDeferredFields
-            invoiceDate={invoiceDate}
-            onInvoiceDate={setInvoiceDate}
-            onPaymentTerms={(days) => {
-              setPaymentTermsDays(String(days));
-              if (invoiceDate && days) {
-                const d = new Date(invoiceDate);
-                d.setUTCDate(d.getUTCDate() + days);
-                setDueDate(d.toISOString().slice(0, 10));
-              }
-            }}
-            onScheduledDate={setScheduledDate}
-            paymentTermsDays={paymentTermsDays}
-            scheduledDate={scheduledDate}
-          />
-        ) : null}
+        {expanded
+          ? motionDeferredFields({
+              invoiceDate,
+              onInvoiceDate: setInvoiceDate,
+              onPaymentTerms: (days: number) => {
+                setPaymentTermsDays(String(days));
+                if (invoiceDate && days) {
+                  const d = new Date(invoiceDate);
+                  d.setUTCDate(d.getUTCDate() + days);
+                  setDueDate(d.toISOString().slice(0, 10));
+                }
+              },
+              onScheduledDate: setScheduledDate,
+              paymentTermsDays,
+              scheduledDate
+            })
+          : null}
 
         {preview ? (
           <p className="mt-3 rounded-md bg-slate-50 px-3 py-2 text-sm dark:bg-slate-800">
@@ -169,33 +169,6 @@ export function CreateDebtModal({
 }
 
 function motionDeferredFields({
-  paymentTermsDays,
-  invoiceDate,
-  scheduledDate,
-  onPaymentTerms,
-  onInvoiceDate,
-  onScheduledDate
-}: {
-  paymentTermsDays: string;
-  invoiceDate: string;
-  scheduledDate: string;
-  onPaymentTerms: (days: number) => void;
-  onInvoiceDate: (v: string) => void;
-  onScheduledDate: (v: string) => void;
-}) {
-  return (
-    <motionDeferredFieldsInner
-      invoiceDate={invoiceDate}
-      onInvoiceDate={onInvoiceDate}
-      onPaymentTerms={onPaymentTerms}
-      onScheduledDate={onScheduledDate}
-      paymentTermsDays={paymentTermsDays}
-      scheduledDate={scheduledDate}
-    />
-  );
-}
-
-function motionDeferredFieldsInner({
   paymentTermsDays,
   invoiceDate,
   scheduledDate,
