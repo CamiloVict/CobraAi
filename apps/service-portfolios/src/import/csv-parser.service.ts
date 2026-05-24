@@ -10,6 +10,9 @@ export type ImportRow = {
   amount: number;
   currency: string;
   due_date: string;
+  scheduled_collection_date?: string;
+  payment_terms_days?: number;
+  invoice_date?: string;
   debtor_type?: string;
   address_city?: string;
   address_country?: string;
@@ -49,6 +52,26 @@ export class CsvParserService {
       throw new Error("amount debe ser positivo");
     }
 
+    const scheduled = row.scheduled_collection_date?.trim();
+    const invoice = row.invoice_date?.trim();
+    const termsRaw = row.payment_terms_days?.trim();
+
+    if (scheduled && invoice && new Date(scheduled) < new Date(row.due_date)) {
+      // scheduled puede ser posterior a due_date; solo validar formato
+    }
+    if (invoice && new Date(invoice) > new Date(row.due_date)) {
+      throw new Error("invoice_date no puede ser posterior a due_date");
+    }
+
+    let paymentTermsDays: number | undefined;
+    if (termsRaw) {
+      const terms = Number(termsRaw);
+      if (!Number.isInteger(terms) || terms < 1 || terms > 720) {
+        throw new Error("payment_terms_days debe ser entero entre 1 y 720");
+      }
+      paymentTermsDays = terms;
+    }
+
     return {
       external_ref: row.external_ref,
       debtor_name: row.debtor_name,
@@ -58,6 +81,9 @@ export class CsvParserService {
       amount,
       currency: row.currency.toUpperCase(),
       due_date: row.due_date,
+      scheduled_collection_date: scheduled || undefined,
+      payment_terms_days: paymentTermsDays,
+      invoice_date: invoice || undefined,
       debtor_type: row.debtor_type,
       address_city: row.address_city,
       address_country: row.address_country,

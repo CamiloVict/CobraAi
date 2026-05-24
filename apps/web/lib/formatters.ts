@@ -17,6 +17,8 @@ export function formatPercent(value: number): string {
 
 export function formatAgingBucket(bucket: string): string {
   const labels: Record<string, string> = {
+    future: "Futuro",
+    upcoming: "Próximo",
     d0_30: "0-30 días",
     d31_60: "31-60 días",
     d61_90: "61-90 días",

@@ -9,6 +9,10 @@ import { KafkaService } from "../kafka/kafka.service";
 import { ScoringService } from "../ai-scoring/scoring.service";
 import { DebtorsService } from "../debtors/debtors.service";
 import {
+  getCollectionQuarter,
+  getInitialDebtStatus
+} from "@cobrai/utils";
+import {
   computeAgingBucket,
   computeAgingDays,
   decimalToNumber,
@@ -44,15 +48,28 @@ export class DebtsService {
       amount_outstanding: { amountOutstanding: direction }
     };
 
+    const includeFuture =
+      query.include_future === "true" || query.include_future === true;
+    const pipelineOnly =
+      query.pipeline === "future" || filters.status === "future,upcoming";
+
     const where: Prisma.DebtWhereInput = {
       tenantId,
       deletedAt: null,
-      ...(filters.status ? { status: filters.status as never } : {}),
+      ...(filters.status && !pipelineOnly
+        ? { status: filters.status as never }
+        : {}),
+      ...(pipelineOnly
+        ? { status: { in: ["future", "upcoming"] } }
+        : !includeFuture
+          ? { status: { notIn: ["future", "upcoming"] } }
+          : {}),
+      ...(filters.collection_quarter
+        ? { collectionQuarter: filters.collection_quarter }
+        : {}),
       ...(filters.aging_bucket ? { agingBucket: filters.aging_bucket as never } : {}),
       ...(filters.ai_segment ? { aiSegment: filters.ai_segment as never } : {}),
-      ...(filters.ai_score
-        ? { aiScore: Number(filters.ai_score) }
-        : {}),
+      ...(filters.ai_score ? { aiScore: Number(filters.ai_score) } : {}),
       ...(filters.portfolio_id ? { portfolioId: filters.portfolio_id } : {})
     };
 
@@ -89,7 +106,17 @@ export class DebtsService {
     });
 
     const dueDate = new Date(dto.due_date);
-    const agingDays = computeAgingDays(dueDate);
+    const scheduledDate = dto.scheduled_collection_date
+      ? new Date(dto.scheduled_collection_date)
+      : undefined;
+    const invoiceDate = dto.invoice_date ? new Date(dto.invoice_date) : undefined;
+
+    if (invoiceDate && invoiceDate > dueDate) {
+      throw new BadRequestException("invoice_date no puede ser posterior a due_date");
+    }
+
+    const { status, agingBucket } = getInitialDebtStatus(dueDate, scheduledDate);
+    const collectionQuarter = getCollectionQuarter(scheduledDate ?? dueDate);
 
     let debt = await this.prisma.debt.create({
       data: {
@@ -101,23 +128,36 @@ export class DebtsService {
         amountOutstanding: dto.amount,
         currency: dto.currency,
         dueDate,
-        agingBucket: computeAgingBucket(agingDays),
-        status: "new",
+        scheduledCollectionDate: scheduledDate,
+        paymentTermsDays: dto.payment_terms_days,
+        collectionQuarter,
+        invoiceDate,
+        agingBucket: agingBucket as never,
+        status: status as never,
         metadata: (dto.metadata ?? {}) as Prisma.InputJsonValue
       }
     });
+
+    await this.refreshPortfolioTotals(tenantId, dto.portfolio_id);
+
+    if (status === "future" || status === "upcoming") {
+      return debt;
+    }
 
     await this.kafka.publish("cobrai.debt.created", tenantId, {
       debt_id: debt.id,
       portfolio_id: debt.portfolioId,
       debtor_id: debt.debtorId,
-      status: debt.status
+      status: debt.status,
+      due_date: dueDate.toISOString()
     });
 
-    debt = await this.prisma.debt.update({
-      where: { id: debt.id },
-      data: { status: "analyzing" }
-    });
+    if (status === "new") {
+      debt = await this.prisma.debt.update({
+        where: { id: debt.id },
+        data: { status: "analyzing" }
+      });
+    }
 
     const scoring = await this.scoringService.scoreDebtRecord(
       tenantId,
@@ -136,7 +176,6 @@ export class DebtsService {
       }
     });
 
-    await this.refreshPortfolioTotals(tenantId, dto.portfolio_id);
     await this.kafka.publish("cobrai.debt.segmented", tenantId, {
       debt_id: debt.id,
       portfolio_id: debt.portfolioId,

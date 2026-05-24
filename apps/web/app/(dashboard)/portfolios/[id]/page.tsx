@@ -4,6 +4,7 @@ import type { Route } from "next";
 import Link from "next/link";
 import { useState } from "react";
 import { DebtTable } from "../../../../components/dashboard/DebtTable";
+import { CreateDebtModal } from "../../../../components/debts/CreateDebtModal";
 import { useDebts } from "../../../../hooks/use-debts";
 import { usePortfolio } from "../../../../hooks/use-portfolios";
 import { formatCurrency } from "../../../../lib/formatters";
@@ -47,12 +48,7 @@ export default function PortfolioDetailPage({
             </p>
           ) : null}
         </div>
-        <Link
-          className="rounded-md bg-[#D85A30] px-4 py-2 text-sm font-medium text-white hover:bg-[#c24f29]"
-          href={`/portfolios/${params.id}/import` as Route}
-        >
-          Importar archivo
-        </Link>
+        <motionPortfolioActions portfolioId={params.id} />
       </header>
 
       <DebtTable
@@ -64,5 +60,25 @@ export default function PortfolioDetailPage({
         sort={sort}
       />
     </section>
+  );
+}
+
+function motionPortfolioActions({ portfolioId }: { portfolioId: string }) {
+  return (
+    <motionPortfolioActionsInner portfolioId={portfolioId} />
+  );
+}
+
+function motionPortfolioActionsInner({ portfolioId }: { portfolioId: string }) {
+  return (
+    <div className="flex gap-2">
+      <CreateDebtModal portfolioId={portfolioId} />
+      <Link
+        className="rounded-md bg-[#D85A30] px-4 py-2 text-sm font-medium text-white hover:bg-[#c24f29]"
+        href={`/portfolios/${portfolioId}/import` as Route}
+      >
+        Importar archivo
+      </Link>
+    </div>
   );
 }

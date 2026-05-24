@@ -8,6 +8,7 @@ import {
   formatAgingBucket,
   formatCurrency
 } from "../../lib/formatters";
+import { getDaysUntilCollection } from "../../lib/quarters";
 import type { Debt } from "../../lib/types";
 import { toNumber } from "../../lib/types";
 import { useDebounce } from "../../hooks/use-debounce";
@@ -29,7 +30,8 @@ export function DebtTable({
   loading,
   onPageChange,
   onSortChange,
-  sort
+  sort,
+  pipelineMode = false
 }: {
   debts: Debt[];
   pagination?: {
@@ -41,6 +43,7 @@ export function DebtTable({
   onPageChange?: (page: number) => void;
   onSortChange?: (sort: string) => void;
   sort?: string;
+  pipelineMode?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
@@ -102,6 +105,7 @@ export function DebtTable({
               ))}
               <th className="px-4 py-3">Aging</th>
               <th className="px-4 py-3">Estado</th>
+              {pipelineMode ? <th className="px-4 py-3">Activa en</th> : null}
               <th className="px-4 py-3">Acciones</th>
             </tr>
           </thead>
@@ -113,7 +117,19 @@ export function DebtTable({
                 </td>
               </tr>
             ) : (
-              filtered.map((debt) => (
+              filtered.map((debt) => {
+                const deferred =
+                  debt.status === "future" || debt.status === "upcoming";
+                const daysUntil = deferred
+                  ? getDaysUntilCollection(
+                      new Date(debt.dueDate),
+                      debt.scheduledCollectionDate
+                        ? new Date(debt.scheduledCollectionDate)
+                        : undefined
+                    )
+                  : null;
+
+                return (
                 <tr
                   className="border-b border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-950"
                   key={debt.id}
@@ -131,7 +147,11 @@ export function DebtTable({
                     {new Date(debt.dueDate).toLocaleDateString("es-CO")}
                   </td>
                   <td className="px-4 py-3 min-w-[120px]">
-                    <ScoreBar score={debt.aiScore} />
+                    {deferred ? (
+                      <span className="text-slate-400">—</span>
+                    ) : (
+                      <ScoreBar score={debt.aiScore} />
+                    )}
                   </td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
                     {formatAgingBucket(debt.agingBucket)}
@@ -139,17 +159,30 @@ export function DebtTable({
                   <td className="px-4 py-3">
                     <StatusBadge status={debt.status} />
                   </td>
+                  {pipelineMode ? (
+                    <td className="px-4 py-3 text-slate-500">
+                      {daysUntil !== null && daysUntil > 0
+                        ? `En ${daysUntil} días`
+                        : "—"}
+                    </td>
+                  ) : null}
                   <td className="px-4 py-3">
                     <Link
                       className="inline-flex items-center gap-1 text-[#D85A30] hover:underline"
                       href={`/debts/${debt.id}` as Route}
+                      title={
+                        deferred
+                          ? "Esta cuenta aún no está disponible para gestión"
+                          : undefined
+                      }
                     >
                       Ver
                       <ExternalLink className="h-3.5 w-3.5" />
                     </Link>
                   </td>
                 </tr>
-              ))
+              );
+              })
             )}
           </tbody>
         </table>

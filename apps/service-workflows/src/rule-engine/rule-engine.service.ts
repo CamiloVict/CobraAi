@@ -11,6 +11,18 @@ type ConditionValue =
 
 @Injectable()
 export class RuleEngineService {
+  evaluateRules(
+    debt: Debt,
+    debtor: Debtor | null,
+    condition: Record<string, unknown>
+  ): { applied: boolean; reason?: string } {
+    if (debt.status === "future" || debt.status === "upcoming") {
+      return { applied: false, reason: "debt_not_yet_collectable" };
+    }
+    const applied = this.matchesCondition(debt, debtor, condition);
+    return { applied, reason: applied ? undefined : "condition_not_met" };
+  }
+
   matchesCondition(
     debt: Debt,
     debtor: Debtor | null,

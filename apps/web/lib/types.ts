@@ -45,6 +45,28 @@ export interface Debtor {
   type: string;
 }
 
+export interface PortfolioQuarterStat {
+  quarter: string;
+  label: string;
+  amount: number;
+  debts_count: number;
+  status: "active" | "upcoming" | "future";
+  recovered: number;
+  recovery_rate: number;
+  aging_summary: Record<string, number> | null;
+}
+
+export interface PortfolioStats {
+  total_active_amount: number;
+  total_active_debts: number;
+  recovery_rate: number;
+  dso_average: number;
+  recovered_amount: number;
+  total_portfolio_amount: number;
+  total_portfolio_debts: number;
+  quarters: PortfolioQuarterStat[];
+}
+
 export interface Debt {
   id: string;
   portfolioId: string;
@@ -54,6 +76,10 @@ export interface Debt {
   amountOutstanding: string | number;
   currency: string;
   dueDate: string;
+  scheduledCollectionDate?: string | null;
+  paymentTermsDays?: number | null;
+  collectionQuarter?: string | null;
+  invoiceDate?: string | null;
   agingBucket: string;
   status: string;
   aiScore?: number | null;

@@ -14,7 +14,9 @@ import type {
   WorkflowRule
 } from "@cobrai/db";
 import {
-  computeAgingBucket,
+  getAgingBucket
+} from "@cobrai/utils";
+import {
   computeAgingDays,
   decimalToNumber,
   startOfTodayUtc
@@ -201,10 +203,52 @@ export class WorkflowsService {
       ).length
     }));
 
+    const deferred = await this.prisma.debt.findMany({
+      where: {
+        tenantId,
+        deletedAt: null,
+        status: { in: ["future", "upcoming"] }
+      },
+      select: {
+        status: true,
+        amountOutstanding: true,
+        dueDate: true,
+        scheduledCollectionDate: true
+      }
+    });
+
+    const upcomingDebts = deferred.filter((d) => d.status === "upcoming");
+    const futureDebts = deferred.filter((d) => d.status === "future");
+    const nextActivation = upcomingDebts
+      .map((d) => d.scheduledCollectionDate ?? d.dueDate)
+      .sort((a, b) => a.getTime() - b.getTime())[0];
+
+    const byChannel = items.reduce<Record<string, number>>((acc, row) => {
+      acc[row.channel] = row.count;
+      return acc;
+    }, {});
+
     return {
       date: today.toISOString().slice(0, 10),
       items,
-      total: items.reduce((sum, row) => sum + row.count, 0)
+      total: items.reduce((sum, row) => sum + row.count, 0),
+      scheduled_today: items.reduce((sum, row) => sum + row.count, 0),
+      by_channel: byChannel,
+      deferred_pipeline: {
+        upcoming_debts: upcomingDebts.length,
+        future_debts: futureDebts.length,
+        upcoming_amount: upcomingDebts.reduce(
+          (s, d) => s + decimalToNumber(d.amountOutstanding),
+          0
+        ),
+        future_amount: futureDebts.reduce(
+          (s, d) => s + decimalToNumber(d.amountOutstanding),
+          0
+        ),
+        next_activation_date: nextActivation
+          ? nextActivation.toISOString().slice(0, 10)
+          : null
+      }
     };
   }
 
@@ -314,6 +358,8 @@ export class WorkflowsService {
     let processed = 0;
     let contacts = 0;
 
+    await this.runDeferredTransitions(tenantId);
+
     const activeDebts = await this.prisma.debt.findMany({
       where: {
         tenantId,
@@ -326,8 +372,7 @@ export class WorkflowsService {
     });
 
     for (const debt of activeDebts) {
-      const agingDays = computeAgingDays(debt.dueDate);
-      const bucket = computeAgingBucket(agingDays);
+      const bucket = getAgingBucket(debt.dueDate);
       if (debt.agingBucket !== bucket) {
         await this.prisma.debt.update({
           where: { id: debt.id },
@@ -622,6 +667,79 @@ export class WorkflowsService {
         amount >= amountThreshold) ||
       brokenPromises >= 5 ||
       noConsent
+    );
+  }
+
+  private async runDeferredTransitions(tenantId: string): Promise<void> {
+    const now = new Date();
+    const in30Days = new Date(now);
+    in30Days.setUTCDate(in30Days.getUTCDate() + 30);
+
+    const nowUpcoming = await this.prisma.debt.findMany({
+      where: {
+        tenantId,
+        status: "future",
+        deletedAt: null,
+        OR: [
+          { scheduledCollectionDate: { lte: in30Days } },
+          { scheduledCollectionDate: null, dueDate: { lte: in30Days } }
+        ]
+      },
+      select: { id: true, tenantId: true, dueDate: true }
+    });
+
+    for (const debt of nowUpcoming) {
+      await this.prisma.debt.update({
+        where: { id: debt.id },
+        data: { status: "upcoming", agingBucket: "upcoming" }
+      });
+      await this.kafka.publish("cobrai.debt.status_changed", tenantId, {
+        debt_id: debt.id,
+        tenant_id: debt.tenantId,
+        from_status: "future",
+        to_status: "upcoming",
+        reason: "due_date_approaching_30d"
+      });
+    }
+    this.logger.log(
+      `Transición future→upcoming (${tenantId}): ${nowUpcoming.length} deudas`
+    );
+
+    const nowNew = await this.prisma.debt.findMany({
+      where: {
+        tenantId,
+        status: "upcoming",
+        deletedAt: null,
+        OR: [
+          { scheduledCollectionDate: { lte: now } },
+          { scheduledCollectionDate: null, dueDate: { lte: now } }
+        ]
+      },
+      select: { id: true, tenantId: true, dueDate: true }
+    });
+
+    for (const debt of nowNew) {
+      const agingBucket = getAgingBucket(debt.dueDate);
+      await this.prisma.debt.update({
+        where: { id: debt.id },
+        data: { status: "new", agingBucket: agingBucket as never }
+      });
+      await this.kafka.publish("cobrai.debt.created", tenantId, {
+        debt_id: debt.id,
+        tenant_id: debt.tenantId,
+        due_date: debt.dueDate.toISOString(),
+        source: "deferred_activation"
+      });
+      await this.kafka.publish("cobrai.debt.status_changed", tenantId, {
+        debt_id: debt.id,
+        tenant_id: debt.tenantId,
+        from_status: "upcoming",
+        to_status: "new",
+        reason: "collection_date_reached"
+      });
+    }
+    this.logger.log(
+      `Transición upcoming→new (${tenantId}): ${nowNew.length} deudas activadas`
     );
   }
 

@@ -5,8 +5,8 @@ import {
   useCreateTemplate,
   useTemplates,
   type NotificationTemplate
-} from "../../../hooks/use-notifications";
-import { renderTemplatePreview } from "../../../lib/template-preview";
+} from "../../../../hooks/use-notifications";
+import { renderTemplatePreview } from "../../../../lib/template-preview";
 
 function extractVariables(content: string): string[] {
   const matches = content.match(/\{\{(\w+)\}\}/g) ?? [];

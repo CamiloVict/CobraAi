@@ -64,6 +64,8 @@ enum RiskSegment {
 }
 
 enum AgingBucket {
+  future
+  upcoming
   d0_30
   d31_60
   d61_90
@@ -74,6 +76,8 @@ enum AgingBucket {
 }
 
 enum DebtStatus {
+  future
+  upcoming
   new
   analyzing
   active
@@ -345,6 +349,10 @@ model Debt {
   amountOutstanding Decimal         @map("amount_outstanding") @db.Decimal(15, 2)
   currency          String          @default("COP") @db.Char(3)
   dueDate           DateTime        @map("due_date") @db.Date
+  scheduledCollectionDate DateTime? @map("scheduled_collection_date") @db.Date
+  paymentTermsDays  Int?            @map("payment_terms_days")
+  collectionQuarter String?         @map("collection_quarter")
+  invoiceDate       DateTime?       @map("invoice_date") @db.Date
   agingBucket       AgingBucket     @map("aging_bucket")
   status            DebtStatus      @default(new)
   aiScore           Int?            @map("ai_score")
@@ -370,6 +378,7 @@ model Debt {
   @@index([tenantId, status])
   @@index([tenantId, aiScore])
   @@index([tenantId, portfolioId])
+  @@index([tenantId, portfolioId, collectionQuarter])
   @@index([tenantId, debtorId])
   @@map("debts")
 }

@@ -11,6 +11,9 @@ export type DebtsQuery = {
   portfolioId?: string;
   status?: string;
   aiSegment?: string;
+  includeFuture?: boolean;
+  pipeline?: boolean;
+  collectionQuarter?: string;
 };
 
 export function useDebts(query: DebtsQuery = {}) {
@@ -23,6 +26,11 @@ export function useDebts(query: DebtsQuery = {}) {
   if (query.portfolioId) params["filter[portfolio_id]"] = query.portfolioId;
   if (query.status) params["filter[status]"] = query.status;
   if (query.aiSegment) params["filter[ai_segment]"] = query.aiSegment;
+  if (query.collectionQuarter) {
+    params["filter[collection_quarter]"] = query.collectionQuarter;
+  }
+  if (query.includeFuture) params.include_future = "true";
+  if (query.pipeline) params.pipeline = "future";
 
   return useQuery({
     queryKey: ["debts", params],

@@ -4,12 +4,15 @@ import {
   IsDateString,
   IsEmail,
   IsIn,
+  IsInt,
   IsNumber,
   IsOptional,
   IsPositive,
   IsString,
   Matches,
+  Max,
   MaxLength,
+  Min,
   MinLength,
   ValidateNested
 } from "class-validator";
@@ -69,12 +72,28 @@ export class CreateDebtDto {
   due_date!: string;
 
   @IsOptional()
+  @IsDateString()
+  scheduled_collection_date?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(720)
+  payment_terms_days?: number;
+
+  @IsOptional()
+  @IsDateString()
+  invoice_date?: string;
+
+  @IsOptional()
   metadata?: Record<string, unknown>;
 }
 
 export class UpdateDebtDto {
   @IsOptional()
   @IsIn([
+    "future",
+    "upcoming",
     "new",
     "analyzing",
     "active",

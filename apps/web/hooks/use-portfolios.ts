@@ -38,7 +38,7 @@ export function usePortfolioStats(id: string) {
   return useQuery({
     queryKey: ["portfolio-stats", id],
     queryFn: () =>
-      fetchApi<ApiItemResponse<Record<string, unknown>>>(
+      fetchApi<ApiItemResponse<import("../lib/types").PortfolioStats>>(
         client,
         `/api/v1/portfolios/${id}/stats`
       ),

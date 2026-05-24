@@ -168,6 +168,9 @@ export class ImportService implements OnModuleInit, OnModuleDestroy {
           amount: row.amount,
           currency: row.currency,
           due_date: row.due_date,
+          scheduled_collection_date: row.scheduled_collection_date,
+          payment_terms_days: row.payment_terms_days,
+          invoice_date: row.invoice_date,
           metadata: row.metadata,
           debtor: {
             name: row.debtor_name,

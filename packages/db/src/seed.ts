@@ -20,11 +20,24 @@ export type RunSeedOptions = {
   requireClerkAlign?: boolean;
 };
 
+function daysFromNow(days: number): Date {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d;
+}
+
 function daysAgo(days: number): Date {
   const d = new Date();
   d.setUTCHours(0, 0, 0, 0);
   d.setUTCDate(d.getUTCDate() - days);
   return d;
+}
+
+function collectionQuarterFor(date: Date): string {
+  const month = date.getUTCMonth();
+  const year = date.getUTCFullYear();
+  return `Q${Math.floor(month / 3) + 1}-${year}`;
 }
 
 function computeAiScore(agingDays: number, hasWhatsapp: boolean): number {
@@ -410,6 +423,7 @@ export async function runSeed(options: RunSeedOptions = {}): Promise<void> {
           amountOutstanding: amount,
           currency: row.currency,
           dueDate,
+          collectionQuarter: collectionQuarterFor(dueDate),
           agingBucket: row.bucket,
           status:
             row.bucket === "d180_plus"
@@ -430,10 +444,51 @@ export async function runSeed(options: RunSeedOptions = {}): Promise<void> {
     })
   );
 
+  const deferredPlans: Array<{
+    suffix: string;
+    dueDate: Date;
+    status: DebtStatus;
+    bucket: AgingBucket;
+    amount: number;
+  }> = [
+    { suffix: "Q3-1", dueDate: new Date("2026-07-15"), status: "future", bucket: "future", amount: 800_000 },
+    { suffix: "Q3-2", dueDate: new Date("2026-08-22"), status: "future", bucket: "future", amount: 920_000 },
+    { suffix: "Q3-3", dueDate: new Date("2026-09-10"), status: "future", bucket: "future", amount: 750_000 },
+    { suffix: "Q3-4", dueDate: daysFromNow(20), status: "upcoming", bucket: "upcoming", amount: 680_000 },
+    { suffix: "Q3-5", dueDate: daysFromNow(45), status: "future", bucket: "future", amount: 610_000 },
+    { suffix: "Q4-1", dueDate: new Date("2026-10-15"), status: "future", bucket: "future", amount: 540_000 },
+    { suffix: "Q4-2", dueDate: new Date("2026-11-20"), status: "future", bucket: "future", amount: 490_000 },
+    { suffix: "Q4-3", dueDate: new Date("2026-12-05"), status: "future", bucket: "future", amount: 430_000 }
+  ];
+
+  let deferredCount = 0;
+  for (const plan of deferredPlans) {
+    const debtor = debtors[deferredCount % debtors.length];
+    if (!debtor) continue;
+    totalAmount += plan.amount;
+    deferredCount += 1;
+    await prisma.debt.create({
+      data: {
+        tenantId: tenant.id,
+        portfolioId: portfolio.id,
+        debtorId: debtor.id,
+        externalRef: `DEBT-DEF-${plan.suffix}`,
+        amountOriginal: plan.amount,
+        amountOutstanding: plan.amount,
+        currency: "COP",
+        dueDate: plan.dueDate,
+        collectionQuarter: collectionQuarterFor(plan.dueDate),
+        agingBucket: plan.bucket,
+        status: plan.status,
+        metadata: { seed: true, deferred: true }
+      }
+    });
+  }
+
   await prisma.portfolio.update({
     where: { id: portfolio.id },
     data: {
-      totalDebts: createdDebts.length,
+      totalDebts: createdDebts.length + deferredCount,
       totalAmount
     }
   });
