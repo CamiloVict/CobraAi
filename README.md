@@ -16,7 +16,7 @@ Plataforma SaaS de cobranza y cuentas por cobrar para América Latina.
 apps/
   web/                     Next.js 14 (:3001)
   api-gateway/             Único punto de entrada (:3000)
-  service-portfolios/      Portafolios y deudas (:3001 interno)
+  service-portfolios/      Portafolios y deudas (:3011)
   service-workflows/       Estrategias (:3002)
   service-notifications/   Omnicanal (:3003)
   service-payments/        Pagos (:3004)
@@ -36,11 +36,9 @@ infra/docker/  Postgres, Redis, Kafka, Kafka UI
 ```bash
 pnpm install
 pnpm run infra:up
+pnpm env:setup          # copia .env.example → .env (sin sobrescribir)
 
-cp .env.example .env
-cp apps/web/.env.example apps/web/.env.local
-# Completar claves de Clerk
-
+# Completar claves Clerk — ver docs/ENV.md
 pnpm db:generate
 pnpm db:migrate
 pnpm db:seed
@@ -48,19 +46,20 @@ pnpm db:seed
 # Tras registrarte y crear org en Clerk (/onboarding):
 pnpm db:seed:align   # 30 deudas demo bajo TU org de Clerk
 
-pnpm gateway:dev   # http://localhost:3000
-pnpm web:dev        # http://localhost:3001
-PORT=3011 pnpm portfolios:dev
+pnpm services      # gateway + microservicios
+pnpm front         # http://localhost:3001
 ```
+
+Variables de entorno: **[docs/ENV.md](docs/ENV.md)** · checklist completo con puertos y keys.
 
 ### Service Portfolios (1.1)
 
 Expuesto vía gateway en `/api/v1/portfolios|debts|debtors`. Requiere headers `X-Tenant-Id` (o token Clerk en gateway).
 
 ```bash
-# Ejemplo directo al microservicio (dev)
-curl -H "X-Tenant-Id: org_demo_fintech" http://localhost:3001/api/v1/portfolios
-curl -H "X-Tenant-Id: org_demo_fintech" "http://localhost:3001/api/v1/debts?filter[ai_segment]=medium"
+# Ejemplo directo al microservicio (dev, puerto 3011)
+curl -H "X-Tenant-Id: org_demo_fintech" http://localhost:3011/api/v1/portfolios
+curl -H "X-Tenant-Id: org_demo_fintech" "http://localhost:3011/api/v1/debts?filter[ai_segment]=medium"
 ```
 
 ## Auth (Clerk)
@@ -80,6 +79,7 @@ curl -H "X-Tenant-Id: org_demo_fintech" "http://localhost:3001/api/v1/debts?filt
 | Comando | Descripción |
 |---------|-------------|
 | `pnpm run infra:up` | Docker: Postgres, Redis, Kafka |
+| `pnpm env:setup` | Copiar `.env.example` a cada app |
 | `pnpm db:migrate` | Migraciones Prisma |
 | `pnpm db:seed` | Datos demo (tenant fijo si no hay Clerk) |
 | `pnpm db:seed:align` | Demo alineado a tu org de Clerk |

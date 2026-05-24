@@ -6,7 +6,7 @@ Prisma 5 + PostgreSQL 16. Modelo multi-tenant CobraAI con soft delete (`deleted_
 
 ```bash
 pnpm run infra:up
-# DATABASE_URL=postgresql://cobrai:cobrai_dev@localhost:5432/cobrai_dev
+# DATABASE_URL=postgresql://cobrai:cobrai_dev@localhost:5433/cobrai_dev
 
 pnpm db:generate
 pnpm db:migrate

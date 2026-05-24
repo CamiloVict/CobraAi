@@ -19,6 +19,7 @@
     "infra:up": "docker compose -f infra/docker/docker-compose.yml up -d",
     "infra:down": "docker compose -f infra/docker/docker-compose.yml down",
     "infra:logs": "docker compose -f infra/docker/docker-compose.yml logs -f",
+    "env:setup": "bash scripts/env-setup.sh",
     "db:generate": "pnpm --filter @cobrai/db db:generate",
     "db:migrate": "pnpm --filter @cobrai/db db:migrate",
     "db:seed": "pnpm --filter @cobrai/db db:seed",
