@@ -1,0 +1,47 @@
+{
+  "name": "@cobrai/service-portfolios",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "nest start --watch",
+    "build": "nest build",
+    "start": "node dist/main.js",
+    "lint": "eslint \"src/**/*.ts\"",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts"
+  },
+  "dependencies": {
+    "@cobrai/compliance": "workspace:*",
+    "@cobrai/db": "workspace:*",
+    "@cobrai/test-utils": "workspace:*",
+    "@cobrai/kafka": "workspace:*",
+    "@cobrai/ports": "workspace:*",
+    "@cobrai/types": "workspace:*",
+    "@cobrai/utils": "workspace:*",
+    "@nestjs/common": "^10.4.22",
+    "@nestjs/config": "^3.3.0",
+    "@nestjs/core": "^10.4.22",
+    "@nestjs/platform-express": "^10.4.22",
+    "bullmq": "^5.70.4",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.4",
+    "exceljs": "^4.4.0",
+    "ioredis": "^5.10.1",
+    "multer": "^2.1.1",
+    "papaparse": "^5.5.3",
+    "@prisma/client": "^5.22.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^10.4.9",
+    "@nestjs/schematics": "^10.2.3",
+    "@nestjs/testing": "^10.4.22",
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.1.0",
+    "@types/papaparse": "^5.5.2",
+    "vitest": "^4.1.6"
+  }
+}
