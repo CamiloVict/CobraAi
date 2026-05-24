@@ -14,8 +14,46 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.prisma = void 0;
+exports.PrismaService = exports.prisma = void 0;
 const client_1 = require("@prisma/client");
-exports.prisma = new client_1.PrismaClient();
+const dotenv_1 = require("dotenv");
+const node_fs_1 = require("node:fs");
+const node_path_1 = require("node:path");
+function ensureDatabaseUrl() {
+    if (process.env.DATABASE_URL) {
+        return;
+    }
+    const cwd = process.cwd();
+    const candidates = [
+        (0, node_path_1.resolve)(cwd, ".env"),
+        (0, node_path_1.resolve)(cwd, ".env.local"),
+        (0, node_path_1.resolve)(cwd, "../../.env"),
+        (0, node_path_1.resolve)(cwd, "../../.env.local"),
+        (0, node_path_1.join)(__dirname, "../../../../../.env"),
+        (0, node_path_1.join)(__dirname, "../../../../../.env.local")
+    ];
+    for (const envPath of candidates) {
+        if (!(0, node_fs_1.existsSync)(envPath)) {
+            continue;
+        }
+        (0, dotenv_1.config)({
+            path: envPath,
+            override: false
+        });
+        if (process.env.DATABASE_URL) {
+            return;
+        }
+    }
+}
+ensureDatabaseUrl();
+const globalForPrisma = globalThis;
+exports.prisma = globalForPrisma.prisma ??
+    new client_1.PrismaClient({
+        log: process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"]
+    });
+if (process.env.NODE_ENV !== "production") {
+    globalForPrisma.prisma = exports.prisma;
+}
 __exportStar(require("@prisma/client"), exports);
-//# sourceMappingURL=index.js.map
+var prisma_service_1 = require("./prisma.service");
+Object.defineProperty(exports, "PrismaService", { enumerable: true, get: function () { return prisma_service_1.PrismaService; } });

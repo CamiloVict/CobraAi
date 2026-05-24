@@ -1,328 +1,622 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema", "postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [uuidOssp(map: "uuid-ossp"), pgcrypto]
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum TenantPlan {
+  trial
+  growth
+  enterprise
+
+  @@map("tenant_plan")
 }
 
 enum UserRole {
   admin
+  manager
   agent
-  seller
+  viewer
+
+  @@map("user_role")
 }
 
-enum InvoiceStatus {
-  due_soon
-  overdue
-  paid
-  in_collection
+enum PortfolioStatus {
+  active
+  paused
+  archived
+
+  @@map("portfolio_status")
 }
 
-enum MessageChannel {
+enum DebtorType {
+  person
+  company
+
+  @@map("debtor_type")
+}
+
+enum ContactChannel {
   whatsapp
   voice
+  email
+  sms
+  portal
+
+  @@map("contact_channel")
+}
+
+enum RiskSegment {
+  critical
+  high
+  medium
+  low
+  minimal
+
+  @@map("risk_segment")
+}
+
+enum AgingBucket {
+  d0_30
+  d31_60
+  d61_90
+  d91_180
+  d180_plus
+
+  @@map("aging_bucket")
+}
+
+enum DebtStatus {
+  new
+  analyzing
+  active
+  contacted
+  promised
+  plan
+  disputed
+  legal_risk
+  legal
+  paid_partial
+  paid_full
+  written_off
+
+  @@map("debt_status")
+}
+
+enum ContactStatus {
+  scheduled
+  in_progress
+  completed
+  failed
+  cancelled
+
+  @@map("contact_status")
+}
+
+enum ContactOutcome {
+  promise_made
+  payment_received
+  no_answer
+  refused
+  voicemail
+  wrong_number
+  callback_requested
+
+  @@map("contact_outcome")
+}
+
+enum AgentType {
+  ai
+  human
+
+  @@map("agent_type")
+}
+
+enum PromiseStatus {
+  pending
+  kept
+  broken
+  partial
+
+  @@map("promise_status")
+}
+
+enum PaymentGateway {
+  pix
+  spei
+  pse
+  mercadopago
+  conekta
+  card
+  transfer
+  cash
+
+  @@map("payment_gateway")
+}
+
+enum PaymentStatus {
+  pending
+  confirmed
+  failed
+  refunded
+
+  @@map("payment_status")
+}
+
+enum PaymentLinkStatus {
+  active
+  used
+  expired
+  cancelled
+
+  @@map("payment_link_status")
+}
+
+enum ConversationStatus {
+  open
+  closed
+  archived
+  pending
+
+  @@map("conversation_status")
 }
 
 enum MessageDirection {
-  inbound
-  outbound
+  in
+  out
+
+  @@map("message_direction")
 }
 
 enum MessageStatus {
-  queued
   sent
   delivered
   read
   failed
-  completed
+
+  @@map("message_status")
 }
 
-model Organization {
-  id                    String   @id @default(cuid())
-  clerkOrgId            String   @unique
-  name                  String
-  plan                  String?
-  country               String?
-  whatsappPhoneNumberId String?
-  stripeAccountId       String?
-  erpConfig             Json?
-  isActive              Boolean  @default(true)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+enum ConsentSource {
+  web
+  import
+  agent
+  api
+  opt_in_message
 
-  users         User[]
-  sellers       Seller[]
-  clients       Client[]
-  invoices      Invoice[]
-  importBatches ImportBatch[]
-  conversations  Conversation[]
-  campaigns      Campaign[]
+  @@map("consent_source")
+}
 
-  @@index([isActive])
+enum WorkflowTrigger {
+  debt_created
+  debt_updated
+  score_updated
+  promise_broken
+  payment_confirmed
+  schedule
+  manual
+
+  @@map("workflow_trigger")
+}
+
+enum WorkflowAction {
+  send_notification
+  escalate_human
+  update_status
+  assign_strategy
+  create_task
+
+  @@map("workflow_action")
+}
+
+enum WorkflowExecutionStatus {
+  pending
+  running
+  completed
+  failed
+  skipped
+
+  @@map("workflow_execution_status")
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model Tenant {
+  /// Clerk Organization ID (`org_xxx`) — mismo valor que `tenant_id` en requests.
+  id        String     @id
+  name      String
+  slug      String     @unique
+  plan      TenantPlan @default(trial)
+  settings  Json       @default("{}")
+  isActive  Boolean    @default(true) @map("is_active")
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+  deletedAt DateTime?  @map("deleted_at")
+
+  users                 User[]
+  portfolios            Portfolio[]
+  debtors               Debtor[]
+  debts                 Debt[]
+  contacts              Contact[]
+  promisesToPay         PromiseToPay[]
+  payments              Payment[]
+  paymentLinks          PaymentLink[]
+  conversations         Conversation[]
+  notificationTemplates NotificationTemplate[]
+  contactConsents       ContactConsent[]
+  workflowRules         WorkflowRule[]
+  workflowExecutions    WorkflowExecution[]
+  auditLogs             AuditLog[]
+  messages              Message[]
+
+  @@map("tenants")
 }
 
 model User {
-  id             String    @id @default(cuid())
-  clerkUserId    String    @unique
-  organizationId String
-  email          String
-  role           UserRole
-  sellerId       String?
-  lastLoginAt    DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  /// Clerk User ID (`user_xxx`).
+  id           String    @id
+  tenantId     String    @map("tenant_id")
+  email        String
+  name         String
+  role         UserRole
+  passwordHash String?   @map("password_hash")
+  lastLoginAt  DateTime? @map("last_login_at")
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  seller       Seller?      @relation(fields: [sellerId], references: [id])
+  tenant            Tenant      @relation(fields: [tenantId], references: [id])
+  portfoliosCreated Portfolio[] @relation("PortfolioCreatedBy")
+  auditLogs         AuditLog[]
 
-  @@index([organizationId])
-  @@unique([organizationId, email])
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@map("users")
 }
 
-model Seller {
-  id             String   @id @default(cuid())
-  organizationId String
-  name           String
-  email          String?
-  phone          String?
-  commissionRate Decimal? @db.Decimal(5, 2)
-  recoveryRate   Decimal? @db.Decimal(5, 2)
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+model Portfolio {
+  id          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String          @map("tenant_id")
+  name        String
+  description String?
+  status      PortfolioStatus @default(active)
+  totalDebts  Int             @default(0) @map("total_debts")
+  totalAmount Decimal         @default(0) @map("total_amount") @db.Decimal(15, 2)
+  currency    String          @default("COP") @db.Char(3)
+  importedAt  DateTime?       @map("imported_at")
+  createdById String?         @map("created_by")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  deletedAt   DateTime?       @map("deleted_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  users        User[]
-  clients      Client[]
+  tenant    Tenant @relation(fields: [tenantId], references: [id])
+  createdBy User?  @relation("PortfolioCreatedBy", fields: [createdById], references: [id])
+  debts     Debt[]
 
-  @@index([organizationId])
+  @@index([tenantId, status])
+  @@map("portfolios")
 }
 
-model Client {
-  id             String   @id @default(cuid())
-  organizationId String
-  sellerId       String?
-  documentId     String?
-  name           String
-  phone          String?
-  email          String?
-  riskScore      Decimal? @db.Decimal(5, 2)
-  externalId     String?
-  sourceSystem   String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+model Debtor {
+  id               String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId         String          @map("tenant_id")
+  externalRef      String?         @map("external_ref")
+  name             String
+  type             DebtorType      @default(person)
+  taxId            String?         @map("tax_id")
+  phones           Json            @default("[]")
+  email            String?
+  address          Json            @default("{}")
+  whatsappOptIn    Boolean         @default(false) @map("whatsapp_opt_in")
+  emotionalProfile Json?           @map("emotional_profile")
+  bestChannel      ContactChannel? @map("best_channel")
+  bestContactTime  Json?           @map("best_contact_time")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+  deletedAt        DateTime?       @map("deleted_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  seller       Seller?      @relation(fields: [sellerId], references: [id])
-  invoices     Invoice[]
+  tenant        Tenant           @relation(fields: [tenantId], references: [id])
+  debts         Debt[]
+  contacts      Contact[]
   conversations Conversation[]
-  events       CollectionEvent[]
+  consents      ContactConsent[]
 
-  @@index([organizationId])
-  @@index([sellerId])
-  @@index([organizationId, phone])
-  @@index([organizationId, documentId])
-  @@index([organizationId, externalId])
+  @@unique([tenantId, externalRef])
+  @@index([tenantId])
+  @@index([tenantId, taxId])
+  @@map("debtors")
 }
 
-model Invoice {
-  id             String        @id @default(cuid())
-  organizationId String
-  clientId       String
-  number         String?
-  externalId     String?
-  sourceSystem   String?
-  amount         Decimal       @db.Decimal(12, 2)
-  paidAmount     Decimal       @default(0) @db.Decimal(12, 2)
-  currency       String        @default("COP")
-  issueDate      DateTime?
-  dueDate        DateTime
-  daysPastDue    Int           @default(0)
-  status         InvoiceStatus @default(due_soon)
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+model Debt {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId          String          @map("tenant_id")
+  portfolioId       String          @map("portfolio_id") @db.Uuid
+  debtorId          String          @map("debtor_id") @db.Uuid
+  externalRef       String?         @map("external_ref")
+  amountOriginal    Decimal         @map("amount_original") @db.Decimal(15, 2)
+  amountOutstanding Decimal         @map("amount_outstanding") @db.Decimal(15, 2)
+  currency          String          @default("COP") @db.Char(3)
+  dueDate           DateTime        @map("due_date") @db.Date
+  agingBucket       AgingBucket     @map("aging_bucket")
+  status            DebtStatus      @default(new)
+  aiScore           Int?            @map("ai_score")
+  aiSegment         RiskSegment?    @map("ai_segment")
+  riskLevel         RiskSegment?    @map("risk_level")
+  bestChannel       ContactChannel? @map("best_channel")
+  strategyId        String?         @map("strategy_id") @db.Uuid
+  metadata          Json            @default("{}")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  deletedAt         DateTime?       @map("deleted_at")
 
-  organization     Organization      @relation(fields: [organizationId], references: [id])
-  client           Client            @relation(fields: [clientId], references: [id])
-  paymentLinks     PaymentLink[]
-  collectionEvents CollectionEvent[]
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  portfolio          Portfolio           @relation(fields: [portfolioId], references: [id])
+  debtor             Debtor              @relation(fields: [debtorId], references: [id])
+  contacts           Contact[]
+  promisesToPay      PromiseToPay[]
+  payments           Payment[]
+  paymentLinks       PaymentLink[]
+  conversations      Conversation[]
+  workflowExecutions WorkflowExecution[]
 
-  @@index([organizationId])
-  @@index([clientId])
-  @@index([organizationId, number])
-  @@index([status, dueDate])
+  @@index([tenantId, status])
+  @@index([tenantId, aiScore])
+  @@index([tenantId, portfolioId])
+  @@index([tenantId, debtorId])
+  @@map("debts")
 }
 
-model ImportBatch {
-  id             String   @id @default(cuid())
-  organizationId String
-  storageKey     String
-  status         String
-  totalRows      Int      @default(0)
-  successRows    Int      @default(0)
-  errorRows      Int      @default(0)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+model Contact {
+  id              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId        String          @map("tenant_id")
+  debtId          String          @map("debt_id") @db.Uuid
+  debtorId        String          @map("debtor_id") @db.Uuid
+  channel         ContactChannel
+  status          ContactStatus   @default(scheduled)
+  outcome         ContactOutcome?
+  sentimentScore  Float?          @map("sentiment_score")
+  transcriptUrl   String?         @map("transcript_url")
+  durationSeconds Int?            @map("duration_seconds")
+  agentType       AgentType       @default(ai) @map("agent_type")
+  startedAt       DateTime?       @map("started_at")
+  endedAt         DateTime?       @map("ended_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  deletedAt       DateTime?       @map("deleted_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  errors       ImportRowError[]
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  debt          Debt           @relation(fields: [debtId], references: [id])
+  debtor        Debtor         @relation(fields: [debtorId], references: [id])
+  promisesToPay PromiseToPay[]
 
-  @@index([organizationId])
+  @@index([tenantId, debtId])
+  @@index([tenantId, debtorId])
+  @@map("contacts")
 }
 
-model ImportRowError {
-  id            String @id @default(cuid())
-  importBatchId String
-  rowNumber     Int
-  reason        String
-  rawData       Json
+model PromiseToPay {
+  id           String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String        @map("tenant_id")
+  debtId       String        @map("debt_id") @db.Uuid
+  contactId    String?       @map("contact_id") @db.Uuid
+  amount       Decimal       @db.Decimal(15, 2)
+  promisedDate DateTime      @map("promised_date") @db.Date
+  status       PromiseStatus @default(pending)
+  notes        String?
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+  deletedAt    DateTime?     @map("deleted_at")
 
-  importBatch ImportBatch @relation(fields: [importBatchId], references: [id])
+  tenant  Tenant   @relation(fields: [tenantId], references: [id])
+  debt    Debt     @relation(fields: [debtId], references: [id])
+  contact Contact? @relation(fields: [contactId], references: [id])
 
-  @@index([importBatchId])
+  @@index([tenantId, debtId])
+  @@index([tenantId, status])
+  @@map("promises_to_pay")
 }
 
-model Conversation {
-  id             String   @id @default(cuid())
-  organizationId String
-  clientId       String
-  channel        MessageChannel
-  status         String   @default("open")
-  aiEnabled      Boolean  @default(false)
-  lastMessageAt  DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+model Payment {
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String         @map("tenant_id")
+  debtId         String         @map("debt_id") @db.Uuid
+  amount         Decimal        @db.Decimal(15, 2)
+  currency       String         @default("COP") @db.Char(3)
+  gateway        PaymentGateway
+  gatewayRef     String?        @unique @map("gateway_ref")
+  status         PaymentStatus  @default(pending)
+  idempotencyKey String         @unique @map("idempotency_key")
+  confirmedAt    DateTime?      @map("confirmed_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  deletedAt      DateTime?      @map("deleted_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  client       Client       @relation(fields: [clientId], references: [id])
-  messages     Message[]
-  voiceCalls   VoiceCall[]
-  paymentPromises PaymentPromise[]
+  tenant       Tenant        @relation(fields: [tenantId], references: [id])
+  debt         Debt          @relation(fields: [debtId], references: [id])
+  paymentLinks PaymentLink[]
 
-  @@index([organizationId])
-  @@index([clientId])
-}
-
-model Message {
-  id             String           @id @default(cuid())
-  conversationId String
-  direction      MessageDirection
-  author         String?
-  status         MessageStatus    @default(queued)
-  providerMessageId String?       @unique
-  body           String?
-  intent         String?
-  intentConfidence Decimal?       @db.Decimal(5, 4)
-  metadata       Json?
-  sentAt         DateTime?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-
-  conversation Conversation @relation(fields: [conversationId], references: [id])
-
-  @@index([conversationId])
-}
-
-model VoiceCall {
-  id             String        @id @default(cuid())
-  conversationId String
-  providerSid    String?       @unique
-  status         MessageStatus @default(queued)
-  transcript     String?
-  outcome        String?
-  metadata       Json?
-  startedAt      DateTime?
-  completedAt    DateTime?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
-
-  conversation Conversation @relation(fields: [conversationId], references: [id])
-
-  @@index([conversationId])
-}
-
-model Campaign {
-  id             String         @id @default(cuid())
-  organizationId String
-  name           String
-  channel        MessageChannel
-  status         String
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-
-  organization Organization @relation(fields: [organizationId], references: [id])
-
-  @@index([organizationId])
-}
-
-model PaymentPromise {
-  id             String   @id @default(cuid())
-  conversationId String
-  invoiceIds     String[]
-  amount         Decimal  @db.Decimal(12, 2)
-  promiseDate    DateTime
-  status         String
-  createdBy      String?
-  reminderSent   Boolean  @default(false)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  conversation Conversation @relation(fields: [conversationId], references: [id])
-
-  @@index([conversationId])
-  @@index([status, promiseDate])
+  @@index([tenantId, debtId])
+  @@index([tenantId, status])
+  @@map("payments")
 }
 
 model PaymentLink {
-  id           String    @id @default(cuid())
-  invoiceId    String
-  stripeLinkId String?   @unique
-  url          String
-  amount       Decimal   @db.Decimal(12, 2)
-  currency     String    @default("COP")
-  status       String
-  paidAt       DateTime?
-  expiresAt    DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id        String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId  String            @map("tenant_id")
+  debtId    String            @map("debt_id") @db.Uuid
+  token     String            @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  amount    Decimal           @db.Decimal(15, 2)
+  currency  String            @default("COP") @db.Char(3)
+  gateway   PaymentGateway
+  status    PaymentLinkStatus @default(active)
+  expiresAt DateTime          @map("expires_at")
+  usedAt    DateTime?         @map("used_at")
+  paymentId String?           @map("payment_id") @db.Uuid
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+  deletedAt DateTime?         @map("deleted_at")
 
-  invoice Invoice @relation(fields: [invoiceId], references: [id])
+  tenant  Tenant   @relation(fields: [tenantId], references: [id])
+  debt    Debt     @relation(fields: [debtId], references: [id])
+  payment Payment? @relation(fields: [paymentId], references: [id])
 
-  @@index([invoiceId])
-  @@index([status])
+  @@index([tenantId, debtId])
+  @@index([tenantId, status])
+  @@map("payment_links")
 }
 
-model CollectionEvent {
-  id         String   @id @default(cuid())
-  clientId   String
-  invoiceId  String?
-  eventType  String
-  actor      String?
-  payload    Json?
-  occurredAt DateTime @default(now())
-  createdAt  DateTime @default(now())
+model Conversation {
+  id            String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId      String             @map("tenant_id")
+  debtorId      String             @map("debtor_id") @db.Uuid
+  debtId        String?            @map("debt_id") @db.Uuid
+  channel       ContactChannel
+  status        ConversationStatus @default(open)
+  lastMessageAt DateTime?          @map("last_message_at")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+  deletedAt     DateTime?          @map("deleted_at")
 
-  client  Client   @relation(fields: [clientId], references: [id])
-  invoice Invoice? @relation(fields: [invoiceId], references: [id])
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  debtor   Debtor    @relation(fields: [debtorId], references: [id])
+  debt     Debt?     @relation(fields: [debtId], references: [id])
+  messages Message[]
 
-  @@index([clientId])
-  @@index([invoiceId])
-  @@index([eventType])
+  @@index([tenantId, debtorId])
+  @@index([tenantId, status])
+  @@map("conversations")
 }
 
-model ErpSyncLog {
-  id             String    @id @default(cuid())
-  sourceSystem   String
-  syncType       String
-  entitiesSynced Int       @default(0)
-  conflicts      Json?
-  startedAt      DateTime  @default(now())
-  completedAt    DateTime?
-  status         String
-  errorDetails   Json?
+model Message {
+  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId       String           @map("tenant_id")
+  conversationId String           @map("conversation_id") @db.Uuid
+  direction      MessageDirection
+  channel        ContactChannel
+  content        String
+  status         MessageStatus    @default(sent)
+  templateId     String?          @map("template_id") @db.Uuid
+  sentAt         DateTime?        @map("sent_at")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  deletedAt      DateTime?        @map("deleted_at")
 
-  @@index([sourceSystem, syncType])
-  @@index([status])
+  tenant       Tenant       @relation(fields: [tenantId], references: [id])
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+
+  @@index([conversationId])
+  @@index([tenantId])
+  @@map("messages")
+}
+
+model NotificationTemplate {
+  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String         @map("tenant_id")
+  name       String
+  channel    ContactChannel
+  content    String
+  variables  Json           @default("[]")
+  isApproved Boolean        @default(false) @map("is_approved")
+  language   String         @default("es")
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+  deletedAt  DateTime?      @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, name, channel])
+  @@index([tenantId, channel])
+  @@map("notification_templates")
+}
+
+model ContactConsent {
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId    String         @map("tenant_id")
+  debtorId    String         @map("debtor_id") @db.Uuid
+  channel     ContactChannel
+  consentedAt DateTime       @map("consented_at")
+  revokedAt   DateTime?      @map("revoked_at")
+  source      ConsentSource
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+  deletedAt   DateTime?      @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  debtor Debtor @relation(fields: [debtorId], references: [id])
+
+  @@index([tenantId, debtorId, channel])
+  @@map("contact_consents")
+}
+
+model WorkflowRule {
+  id         String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String          @map("tenant_id")
+  name       String
+  trigger    WorkflowTrigger
+  condition  Json            @default("{}")
+  action     WorkflowAction
+  channel    ContactChannel?
+  delayHours Int             @default(0) @map("delay_hours")
+  priority   Int             @default(100)
+  isActive   Boolean         @default(true) @map("is_active")
+  createdAt  DateTime        @default(now()) @map("created_at")
+  updatedAt  DateTime        @updatedAt @map("updated_at")
+  deletedAt  DateTime?       @map("deleted_at")
+
+  tenant     Tenant              @relation(fields: [tenantId], references: [id])
+  executions WorkflowExecution[]
+
+  @@index([tenantId, isActive])
+  @@map("workflow_rules")
+}
+
+model WorkflowExecution {
+  id         String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId   String                  @map("tenant_id")
+  debtId     String                  @map("debt_id") @db.Uuid
+  ruleId     String                  @map("rule_id") @db.Uuid
+  status     WorkflowExecutionStatus @default(pending)
+  executedAt DateTime?               @map("executed_at")
+  result     Json                    @default("{}")
+  createdAt  DateTime                @default(now()) @map("created_at")
+  updatedAt  DateTime                @updatedAt @map("updated_at")
+  deletedAt  DateTime?               @map("deleted_at")
+
+  tenant Tenant       @relation(fields: [tenantId], references: [id])
+  debt   Debt         @relation(fields: [debtId], references: [id])
+  rule   WorkflowRule @relation(fields: [ruleId], references: [id])
+
+  @@index([tenantId, debtId])
+  @@index([tenantId, ruleId])
+  @@map("workflow_executions")
+}
+
+model AuditLog {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tenantId     String    @map("tenant_id")
+  userId       String?   @map("user_id")
+  action       String
+  resourceType String    @map("resource_type")
+  resourceId   String    @map("resource_id") @db.Uuid
+  changes      Json      @default("{}")
+  ipAddress    String?   @map("ip_address")
+  userAgent    String?   @map("user_agent")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User?  @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, resourceType, resourceId])
+  @@index([tenantId, createdAt])
+  @@map("audit_logs")
 }

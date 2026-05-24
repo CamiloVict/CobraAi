@@ -1,11 +1,12 @@
 {
-  "name": "@renova/config",
+  "name": "@cobrai/config",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "exports": {
     "./tsconfig/base": "./tsconfig/base.json",
-    "./eslint/base": "./eslint/base.cjs"
+    "./eslint/base": "./eslint/base.cjs",
+    "./jest/base": "./jest.base.js"
   },
   "dependencies": {},
   "devDependencies": {}
