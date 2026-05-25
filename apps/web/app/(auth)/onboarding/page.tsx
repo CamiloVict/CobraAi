@@ -1,16 +1,30 @@
-import { CreateOrganization } from "@clerk/nextjs";
-import {
-  cobraiAuthShellStyle,
-  cobraiClerkAppearance
-} from "../../../lib/clerk-appearance";
+import { auth, clerkClient } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+import { OnboardingFlow } from "../../../components/auth/OnboardingFlow";
 
-export default function OnboardingPage(): React.ReactElement {
-  return (
-    <div style={cobraiAuthShellStyle}>
-      <CreateOrganization
-        afterCreateOrganizationUrl="/dashboard"
-        appearance={cobraiClerkAppearance}
-      />
-    </div>
-  );
+export default async function OnboardingPage(): Promise<React.ReactElement> {
+  const { userId, orgId } = await auth();
+
+  if (!userId) {
+    redirect("/login");
+  }
+
+  if (orgId) {
+    redirect("/dashboard");
+  }
+
+  let existingOrgId: string | undefined;
+
+  try {
+    const client = await clerkClient();
+    const { data } = await client.users.getOrganizationMembershipList({
+      userId,
+      limit: 1
+    });
+    existingOrgId = data[0]?.organization.id;
+  } catch {
+    // Si Clerk falla, el cliente intentará reconciliar membresías.
+  }
+
+  return <OnboardingFlow existingOrgId={existingOrgId} />;
 }

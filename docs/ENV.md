@@ -95,10 +95,11 @@ pnpm front       # web :3001
 
 1. Crear aplicación en [Clerk Dashboard](https://dashboard.clerk.com) con **Organizations**.
 2. Roles de org: `admin`, `manager`, `agent`, `viewer`.
-3. Copiar **Publishable key** y **Secret key** a web y gateway.
-4. Webhook endpoint: `POST http://localhost:3000/api/v1/webhooks/clerk`
-5. Copiar **Signing secret** → `CLERK_WEBHOOK_SECRET`.
-6. Tras registrarte y crear org: `pnpm db:seed:align`.
+3. En **Organizations → Settings**, desactiva la creación de org durante el registro (Sign-up). La org se crea solo en `/onboarding` para evitar duplicados.
+4. Copiar **Publishable key** y **Secret key** a web y gateway.
+5. Webhook endpoint: `POST http://localhost:3000/api/v1/webhooks/clerk`
+6. Copiar **Signing secret** → `CLERK_WEBHOOK_SECRET`.
+7. Tras registrarte y crear org: `pnpm db:seed:align`.
 
 ---
 
