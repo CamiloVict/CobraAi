@@ -14,8 +14,8 @@ import {
 } from "@cobrai/db";
 import { EmailAdapter } from "../adapters/email.adapter";
 import { SmsAdapter } from "../adapters/sms.adapter";
-import { VoiceAdapter } from "../adapters/voice.adapter";
-import { WhatsAppAdapter } from "../adapters/whatsapp.adapter";
+import { VapiVoiceAdapter } from "../adapters/vapi-voice.adapter";
+import { TwilioWhatsAppAdapter } from "../adapters/twilio-whatsapp.adapter";
 import { ComplianceService } from "@cobrai/compliance";
 import {
   buildMessageContent,
@@ -45,8 +45,8 @@ export class ContactsService {
     private readonly compliance: ComplianceService,
     private readonly email: EmailAdapter,
     private readonly sms: SmsAdapter,
-    private readonly whatsapp: WhatsAppAdapter,
-    private readonly voice: VoiceAdapter,
+    private readonly whatsapp: TwilioWhatsAppAdapter,
+    private readonly voice: VapiVoiceAdapter,
     private readonly kafka: KafkaService,
     private readonly waterfall: WaterfallService,
     private readonly config: ConfigService

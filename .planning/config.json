@@ -1,0 +1,14 @@
+{
+  "project_name": "CobraAI — WhatsApp & Voice Agent",
+  "version": "1.0",
+  "workflow": {
+    "skip_discuss": true,
+    "mode": "yolo",
+    "granularity": "standard",
+    "model_profile": "balanced",
+    "auto_commit": true
+  },
+  "intel": {
+    "enabled": false
+  }
+}

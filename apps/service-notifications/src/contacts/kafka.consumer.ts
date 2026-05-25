@@ -5,6 +5,10 @@ import {
   ContactsService,
   type ContactRequestPayload
 } from "../contacts/contacts.service";
+import {
+  ConversationAgentService,
+  type InboundMessagePayload
+} from "../agent/conversation-agent.service";
 
 const CONSUMED_TOPICS = [
   "cobrai.contact.requested",
@@ -21,7 +25,8 @@ export class KafkaConsumerService implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     private readonly config: ConfigService,
-    private readonly contacts: ContactsService
+    private readonly contacts: ContactsService,
+    private readonly agent: ConversationAgentService
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -74,8 +79,17 @@ export class KafkaConsumerService implements OnModuleInit, OnModuleDestroy {
         );
         break;
       case "cobrai.whatsapp.message_received":
+        await this.agent.processInboundMessage(
+          payload as InboundMessagePayload
+        );
+        break;
       case "cobrai.voice.call_completed":
-        this.logger.log(`${topic} recibido (stub handler)`, payload);
+        this.logger.log(`voice.call_completed recibido`, payload);
+        // Publicar cobrai.contact.completed para que workflows actualice estado
+        await this.contacts.handleContactRequested(tenantId, {
+          debt_id: String(payload["debt_id"] ?? ""),
+          channel: "voice"
+        } as ContactRequestPayload);
         break;
       default:
         break;

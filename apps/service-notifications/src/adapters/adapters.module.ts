@@ -1,13 +1,14 @@
 import { Module } from "@nestjs/common";
+import { ConfigModule } from "@nestjs/config";
 import { EmailAdapter } from "./email.adapter";
 import { SmsAdapter } from "./sms.adapter";
-import { VoiceAdapter } from "./voice.adapter";
-import { WhatsAppAdapter } from "./whatsapp.adapter";
+import { TwilioWhatsAppAdapter } from "./twilio-whatsapp.adapter";
+import { VapiVoiceAdapter } from "./vapi-voice.adapter";
 import { KafkaModule } from "../kafka/kafka.module";
 
 @Module({
-  imports: [KafkaModule],
-  providers: [EmailAdapter, SmsAdapter, WhatsAppAdapter, VoiceAdapter],
-  exports: [EmailAdapter, SmsAdapter, WhatsAppAdapter, VoiceAdapter]
+  imports: [KafkaModule, ConfigModule],
+  providers: [EmailAdapter, SmsAdapter, TwilioWhatsAppAdapter, VapiVoiceAdapter],
+  exports: [EmailAdapter, SmsAdapter, TwilioWhatsAppAdapter, VapiVoiceAdapter]
 })
 export class AdaptersModule {}
