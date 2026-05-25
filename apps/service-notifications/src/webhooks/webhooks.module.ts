@@ -1,11 +1,14 @@
 import { Module } from "@nestjs/common";
 import { ComplianceModule } from "../compliance/compliance.module";
+import { KafkaModule } from "../kafka/kafka.module";
 import { WebhooksController } from "./webhooks.controller";
 import { WebhooksService } from "./webhooks.service";
+import { TwilioWaWebhookHandler } from "./twilio-wa-webhook.handler";
+import { VapiWebhookHandler } from "./vapi-webhook.handler";
 
 @Module({
-  imports: [ComplianceModule],
+  imports: [ComplianceModule, KafkaModule],
   controllers: [WebhooksController],
-  providers: [WebhooksService]
+  providers: [WebhooksService, TwilioWaWebhookHandler, VapiWebhookHandler]
 })
 export class WebhooksModule {}
