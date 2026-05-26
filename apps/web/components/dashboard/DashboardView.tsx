@@ -24,7 +24,7 @@ type DashboardTab = "active" | "projection";
 export function DashboardView() {
   const [tab, setTab] = useState<DashboardTab>("active");
   const [page, setPage] = useState(1);
-  const [sort, setSort] = useState("ai_score:desc");
+  const [sort, setSort] = useState("priority_score:desc");
   const [pipelineMode, setPipelineMode] = useState(false);
 
   const tableQuery = useDebts({
@@ -34,7 +34,7 @@ export function DashboardView() {
     includeFuture: pipelineMode,
     pipeline: pipelineMode
   });
-  const metricsQuery = useDebts({ page: 1, limit: 100, sort: "ai_score:desc" });
+  const metricsQuery = useDebts({ page: 1, limit: 100, sort: "priority_score:desc" });
   const portfoliosQuery = usePortfolios();
   const waConvsQuery = useConversations({ channel: "whatsapp", limit: 100 });
   const callsQuery = useCalls();

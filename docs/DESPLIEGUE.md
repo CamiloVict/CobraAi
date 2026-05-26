@@ -3,8 +3,8 @@
 | Capa | Plataforma |
 |------|------------|
 | Frontend | **Vercel** (`apps/web`) |
-| API + microservicios | **Fly.io** (región `iad`, misma que Postgres) |
-| Postgres | Fly Postgres `cobrai-db` |
+| API + microservicios | **Fly.io** (región `gru`, São Paulo) |
+| Postgres | Fly Postgres `cobrai-db` (si ya existe en `iad`, sigue funcionando; apps en `gru` se conectan por red interna) |
 | Redis | Fly Redis / Upstash `cobrai-redis` |
 | Kafka | [Upstash Kafka](https://console.upstash.com/) (consola web) |
 
@@ -21,10 +21,10 @@ O manualmente:
 
 ```bash
 # Postgres
-fly postgres create --name cobrai-db --region iad
+fly postgres create --name cobrai-db --region gru
 
 # Redis (Upstash en Fly)
-fly redis create --name cobrai-redis --region iad
+fly redis create --name cobrai-redis --region gru
 
 # Kafka → https://console.upstash.com/ → crear cluster → copiar bootstrap URL
 ```
