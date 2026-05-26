@@ -5,7 +5,7 @@ import {
   NotFoundException
 } from "@nestjs/common";
 import { ensureTenantRecord, PrismaService } from "@cobrai/db";
-import type { Portfolio, WorkflowRule } from "@cobrai/db";
+import { Prisma, type Portfolio, type WorkflowRule } from "@cobrai/db";
 import {
   applyPackageToPortfolio,
   countActivePortfolioRules,
@@ -406,46 +406,66 @@ export class PortfoliosService {
         where: { tenantId, portfolioId: id }
       });
 
-      for (const debtorId of debtorIds) {
-        const activeDebts = await tx.debt.count({
-          where: { tenantId, debtorId, deletedAt: null }
-        });
-        if (activeDebts > 0) continue;
-
-        const orphanConversations = await tx.conversation.findMany({
-          where: { tenantId, debtorId, deletedAt: null },
+      if (debtorIds.length > 0) {
+        const orphanDebtors = await tx.debtor.findMany({
+          where: {
+            tenantId,
+            id: { in: debtorIds },
+            debts: { none: { deletedAt: null } }
+          },
           select: { id: true }
         });
-        const orphanConversationIds = orphanConversations.map((c) => c.id);
+        const orphanDebtorIds = orphanDebtors.map((d) => d.id);
 
-        if (orphanConversationIds.length > 0) {
-          await tx.message.updateMany({
+        if (orphanDebtorIds.length > 0) {
+          const orphanConversations = await tx.conversation.findMany({
             where: {
               tenantId,
-              conversationId: { in: orphanConversationIds },
+              debtorId: { in: orphanDebtorIds },
+              deletedAt: null
+            },
+            select: { id: true }
+          });
+          const orphanConversationIds = orphanConversations.map((c) => c.id);
+
+          if (orphanConversationIds.length > 0) {
+            await tx.message.updateMany({
+              where: {
+                tenantId,
+                conversationId: { in: orphanConversationIds },
+                deletedAt: null
+              },
+              data: { deletedAt: now }
+            });
+            await tx.conversation.updateMany({
+              where: { id: { in: orphanConversationIds } },
+              data: { deletedAt: now }
+            });
+          }
+
+          await tx.contactConsent.updateMany({
+            where: {
+              tenantId,
+              debtorId: { in: orphanDebtorIds },
               deletedAt: null
             },
             data: { deletedAt: now }
           });
-          await tx.conversation.updateMany({
-            where: { id: { in: orphanConversationIds } },
+          await tx.debtor.updateMany({
+            where: { id: { in: orphanDebtorIds }, tenantId },
             data: { deletedAt: now }
           });
         }
-
-        await tx.contactConsent.updateMany({
-          where: { tenantId, debtorId, deletedAt: null },
-          data: { deletedAt: now }
-        });
-        await tx.debtor.updateMany({
-          where: { id: debtorId, tenantId, deletedAt: null },
-          data: { deletedAt: now }
-        });
       }
 
       return tx.portfolio.update({
         where: { id },
-        data: { deletedAt: now, status: "archived", totalDebts: 0, totalAmount: 0 }
+        data: {
+          deletedAt: now,
+          status: "archived",
+          totalDebts: 0,
+          totalAmount: new Prisma.Decimal(0)
+        }
       });
     });
   }

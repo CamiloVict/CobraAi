@@ -77,6 +77,7 @@ describe("PortfoliosService", () => {
       updateMany: vi.fn()
     },
     debtor: {
+      findMany: vi.fn(),
       updateMany: vi.fn()
     },
     user: {
@@ -192,7 +193,7 @@ describe("PortfoliosService", () => {
       { id: "d1", debtorId: "debtor1" }
     ]);
     prisma.conversation.findMany.mockResolvedValue([{ id: "conv1" }]);
-    prisma.debt.count.mockResolvedValue(0);
+    prisma.debtor.findMany.mockResolvedValue([{ id: "debtor1" }]);
     prisma.portfolio.update.mockResolvedValue({
       ...portfolioRecord,
       deletedAt: new Date(),

@@ -128,7 +128,8 @@ export function useDeletePortfolio() {
     mutationFn: (portfolioId: string) =>
       deleteApi<ApiItemResponse<Portfolio>>(
         client,
-        `/api/v1/portfolios/${portfolioId}`
+        `/api/v1/portfolios/${portfolioId}`,
+        { timeout: 300_000 }
       ),
     onSuccess: (_data, portfolioId) => {
       void queryClient.invalidateQueries({ queryKey: ["portfolios"] });

@@ -47,9 +47,12 @@ export async function patchApi<T>(
 
 export async function deleteApi<T>(
   client: AxiosInstance,
-  path: string
+  path: string,
+  options?: { timeout?: number }
 ): Promise<T> {
-  const { data } = await client.delete<T>(path);
+  const { data } = await client.delete<T>(path, {
+    timeout: options?.timeout ?? 60_000
+  });
   return data;
 }
 

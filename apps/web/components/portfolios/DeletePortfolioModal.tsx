@@ -5,8 +5,30 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Trash2 } from "lucide-react";
+import axios from "axios";
 import { useDeletePortfolio } from "../../hooks/use-portfolios";
 import type { Portfolio } from "../../lib/types";
+
+function deleteErrorMessage(error: unknown): string {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data as
+      | { error?: { message?: string }; message?: string | string[] }
+      | undefined;
+    const nested = data?.error?.message;
+    const flat = Array.isArray(data?.message)
+      ? data.message.join(", ")
+      : data?.message;
+    if (nested) return nested;
+    if (flat) return flat;
+    if (error.response?.status === 503) {
+      return "El servidor no pudo completar el borrado (503). Si el portafolio es muy grande, espera un momento e intenta de nuevo.";
+    }
+    if (error.code === "ECONNABORTED") {
+      return "La operación tardó demasiado. El portafolio puede estar eliminándose en segundo plano; recarga la lista.";
+    }
+  }
+  return "No se pudo eliminar el portafolio";
+}
 
 export function DeletePortfolioModal({
   portfolio
@@ -38,8 +60,8 @@ export function DeletePortfolioModal({
       toast.success("Portafolio eliminado");
       close();
       router.push("/portfolios" as Route);
-    } catch {
-      toast.error("No se pudo eliminar el portafolio");
+    } catch (error) {
+      toast.error(deleteErrorMessage(error));
     }
   }
 

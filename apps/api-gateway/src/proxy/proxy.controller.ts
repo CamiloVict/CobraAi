@@ -105,7 +105,7 @@ export class ProxyController {
         method,
         headers,
         body,
-        signal: AbortSignal.timeout(120_000)
+        signal: AbortSignal.timeout(300_000)
       });
     } catch (error) {
       res.status(503).json({
