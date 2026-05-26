@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Infraestructura base en Fly (una sola vez). Región: iad (misma que cobrai-db).
+# Infraestructura base en Fly (una sola vez). Región por defecto: gru (São Paulo).
 # Uso: bash infra/fly/setup-infra.sh
 set -euo pipefail
 
-REGION="${FLY_REGION:-iad}"
+REGION="${FLY_REGION:-gru}"
 ORG="${FLY_ORG:-personal}"
 
 APPS=(

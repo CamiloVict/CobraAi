@@ -12,3 +12,10 @@ test-results
 out
 *.tsbuildinfo
 infra/docker
+# Backend images do not need the Vercel app
+apps/web
+.cursor
+.claude
+.planning
+*.docx
+plataforma_cobranza_diagramas.json
