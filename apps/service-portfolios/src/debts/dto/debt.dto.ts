@@ -14,6 +14,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
   ValidateNested
 } from "class-validator";
 import { Type } from "class-transformer";
@@ -144,6 +145,7 @@ export class UpdateDebtorDto {
   phones?: string[];
 
   @IsOptional()
+  @ValidateIf((_, value) => value != null && value !== "")
   @IsEmail()
   email?: string;
 

@@ -13,6 +13,28 @@ type ScoreContext = {
   previousContactsCount: number;
 };
 
+const ACTIVE_DEBT_STATUSES = [
+  "new",
+  "analyzing",
+  "active",
+  "contacted",
+  "promised",
+  "legal_risk"
+] as const;
+
+function debtorContactFlags(debtor: Debtor): {
+  has_whatsapp: boolean;
+  has_phone: boolean;
+  has_email: boolean;
+} {
+  const phones = Array.isArray(debtor.phones) ? (debtor.phones as string[]) : [];
+  return {
+    has_whatsapp: debtor.whatsappOptIn,
+    has_phone: phones.length > 0,
+    has_email: Boolean(debtor.email?.trim())
+  };
+}
+
 @Injectable()
 export class ScoringService {
   constructor(
@@ -124,21 +146,37 @@ export class ScoringService {
       where: {
         tenantId,
         deletedAt: null,
-        status: {
-          in: [
-            "new",
-            "analyzing",
-            "active",
-            "contacted",
-            "promised",
-            "legal_risk"
-          ]
-        }
+        status: { in: [...ACTIVE_DEBT_STATUSES] }
       },
       include: { debtor: true }
     });
+    return this.updateOperationalScoresForDebts(tenantId, debts);
+  }
 
+  /** Tras editar datos de contacto del deudor, actualiza scores de sus deudas activas. */
+  async refreshScoresForDebtor(
+    tenantId: string,
+    debtorId: string
+  ): Promise<number> {
+    const debts = await this.prisma.debt.findMany({
+      where: {
+        tenantId,
+        debtorId,
+        deletedAt: null,
+        status: { in: [...ACTIVE_DEBT_STATUSES] }
+      },
+      include: { debtor: true }
+    });
+    return this.updateOperationalScoresForDebts(tenantId, debts);
+  }
+
+  private async updateOperationalScoresForDebts(
+    tenantId: string,
+    debts: Array<Debt & { debtor: Debtor }>
+  ): Promise<number> {
     if (debts.length === 0) return 0;
+
+    const debtIds = debts.map((d) => d.id);
 
     const maxByPortfolio = new Map<string, number>();
     for (const debt of debts) {
@@ -151,7 +189,7 @@ export class ScoringService {
 
     const lastContacts = await this.prisma.contact.groupBy({
       by: ["debtId"],
-      where: { tenantId, deletedAt: null },
+      where: { tenantId, debtId: { in: debtIds }, deletedAt: null },
       _max: { createdAt: true }
     });
     const lastContactByDebt = new Map(
@@ -160,7 +198,7 @@ export class ScoringService {
 
     const contactCounts = await this.prisma.contact.groupBy({
       by: ["debtId"],
-      where: { tenantId, deletedAt: null },
+      where: { tenantId, debtId: { in: debtIds }, deletedAt: null },
       _count: { _all: true }
     });
     const contactCountByDebt = new Map(
@@ -169,7 +207,12 @@ export class ScoringService {
 
     const brokenByDebt = await this.prisma.promiseToPay.groupBy({
       by: ["debtId"],
-      where: { tenantId, status: "broken", deletedAt: null },
+      where: {
+        tenantId,
+        debtId: { in: debtIds },
+        status: "broken",
+        deletedAt: null
+      },
       _count: { _all: true }
     });
     const brokenCountByDebt = new Map(
@@ -190,17 +233,19 @@ export class ScoringService {
           })
         ).score;
 
-      const amountOutstanding = decimalToNumber(debt.amountOutstanding);
+      const contact = debtorContactFlags(debt.debtor);
       const operational = planOperationalScores({
         recovery_score: recoveryScore,
-        amount_outstanding: amountOutstanding,
+        amount_outstanding: decimalToNumber(debt.amountOutstanding),
         days_since_last_contact: daysSinceLastContact(
           lastContactByDebt.get(debt.id) ?? null
         ),
         max_amount_in_portfolio: maxByPortfolio.get(debt.portfolioId) ?? 1,
         aging_days: computeAgingDays(debt.dueDate),
         debt_status: debt.status,
-        has_whatsapp: debt.debtor.whatsappOptIn
+        has_whatsapp: contact.has_whatsapp,
+        has_phone: contact.has_phone,
+        has_email: contact.has_email
       });
 
       await this.prisma.debt.update({

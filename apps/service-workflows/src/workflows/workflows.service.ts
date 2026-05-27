@@ -922,7 +922,15 @@ export class WorkflowsService {
 
   private async refreshPriorityScoresForTenant(
     tenantId: string,
-    activeDebts: Array<Debt & { debtor: { whatsappOptIn: boolean } }>
+    activeDebts: Array<
+      Debt & {
+        debtor: {
+          whatsappOptIn: boolean;
+          email: string | null;
+          phones: unknown;
+        };
+      }
+    >
   ): Promise<void> {
     if (activeDebts.length === 0) return;
 
@@ -946,6 +954,9 @@ export class WorkflowsService {
 
     for (const debt of activeDebts) {
       const recoveryScore = debt.aiScore ?? 50;
+      const phones = Array.isArray(debt.debtor.phones)
+        ? (debt.debtor.phones as string[])
+        : [];
       const operational = planOperationalScores({
         recovery_score: recoveryScore,
         amount_outstanding: decimalToNumber(debt.amountOutstanding),
@@ -955,7 +966,9 @@ export class WorkflowsService {
         max_amount_in_portfolio: maxByPortfolio.get(debt.portfolioId) ?? 1,
         aging_days: computeAgingDays(debt.dueDate),
         debt_status: debt.status,
-        has_whatsapp: debt.debtor.whatsappOptIn
+        has_whatsapp: debt.debtor.whatsappOptIn,
+        has_phone: phones.length > 0,
+        has_email: Boolean(debt.debtor.email?.trim())
       });
 
       await this.prisma.debt.update({

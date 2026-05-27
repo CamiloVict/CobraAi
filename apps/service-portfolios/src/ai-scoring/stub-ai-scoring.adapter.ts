@@ -42,10 +42,14 @@ export class StubAIScoringAdapter implements AIScoringPort {
       debt_status: features.debt_status
     });
 
-    const best_channel: ContactChannel = bestChannelForScores(
+    const best_channel: ContactChannel | null = bestChannelForScores(
       score,
       priority_score,
-      features.has_whatsapp
+      {
+        has_whatsapp: features.has_whatsapp,
+        has_phone: features.has_phone,
+        has_email: features.has_email
+      }
     );
 
     return {

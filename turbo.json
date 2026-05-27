@@ -41,7 +41,7 @@
       "dependsOn": ["^typecheck"]
     },
     "test": {
-      "dependsOn": ["^test"],
+      "dependsOn": ["^build"],
       "outputs": []
     },
     "test:e2e": {

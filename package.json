@@ -11,7 +11,7 @@
     "build": "turbo build",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
-    "test": "turbo test",
+    "test": "pnpm db:generate && turbo test",
     "test:e2e": "pnpm db:generate && turbo run test:e2e",
     "playwright": "pnpm --filter @cobrai/web exec playwright test",
     "qa": "bash scripts/qa-check.sh",

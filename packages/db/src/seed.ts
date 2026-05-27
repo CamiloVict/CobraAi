@@ -475,11 +475,11 @@ export async function runSeed(options: RunSeedOptions = {}): Promise<void> {
           priorityScore,
           aiSegment,
           riskLevel: aiSegment,
-          bestChannel: bestChannelForScores(
-            aiScore,
-            priorityScore,
-            debtor.whatsappOptIn
-          ),
+          bestChannel: bestChannelForScores(aiScore, priorityScore, {
+            has_whatsapp: debtor.whatsappOptIn,
+            has_phone: (debtor.phones as string[]).length > 0,
+            has_email: Boolean(debtor.email)
+          }),
           metadata: {
             seed: true,
             invoice_number: `INV-2026-${idx + 1}`

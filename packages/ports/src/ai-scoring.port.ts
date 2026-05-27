@@ -36,7 +36,7 @@ export interface ScoringResult {
   priority_score: number;
   segment: RiskSegment;
   risk_level: RiskSegment;
-  best_channel: ContactChannel;
+  best_channel: ContactChannel | null;
   best_contact_time: { days: string[]; hours: string };
   /** Confianza del modelo 0–1. */
   confidence: number;

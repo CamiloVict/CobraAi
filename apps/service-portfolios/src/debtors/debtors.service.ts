@@ -3,10 +3,14 @@ import { PrismaService } from "@cobrai/db";
 import type { Debtor } from "@cobrai/db";
 import { normalizePhoneE164 } from "@cobrai/utils";
 import type { UpdateDebtorDto } from "../debts/dto/debt.dto";
+import { ScoringService } from "../ai-scoring/scoring.service";
 
 @Injectable()
 export class DebtorsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly scoringService: ScoringService
+  ) {}
 
   async findOne(tenantId: string, id: string) {
     const debtor = await this.prisma.debtor.findFirst({
@@ -38,11 +42,18 @@ export class DebtorsService {
           }
         : {};
 
-    return this.prisma.debtor.update({
+    const email =
+      dto.email === undefined
+        ? undefined
+        : dto.email.trim() === ""
+          ? null
+          : dto.email.trim();
+
+    const updated = await this.prisma.debtor.update({
       where: { id },
       data: {
         name: dto.name,
-        email: dto.email,
+        email,
         whatsappOptIn: dto.whatsapp_opt_in,
         phones: dto.phones
           ? dto.phones
@@ -52,6 +63,9 @@ export class DebtorsService {
         ...addressUpdate
       }
     });
+
+    await this.scoringService.refreshScoresForDebtor(tenantId, id);
+    return updated;
   }
 
   async upsertForDebt(

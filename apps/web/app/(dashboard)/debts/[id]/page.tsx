@@ -15,6 +15,10 @@ import {
   formatCurrency,
   formatSegment
 } from "../../../../lib/formatters";
+import {
+  channelLabel,
+  isChannelAvailableForDebtor
+} from "../../../../lib/contact-channels";
 import { toNumber } from "../../../../lib/types";
 
 export default function DebtDetailPage({
@@ -107,7 +111,30 @@ export default function DebtDetailPage({
             </div>
             <div>
               <dt className="text-xs text-slate-500">Canal sugerido</dt>
-              <dd className="capitalize">{debt.bestChannel ?? "—"}</dd>
+              <dd>
+                {channelLabel(debt.bestChannel)}
+                {debt.bestChannel &&
+                debt.debtor &&
+                !isChannelAvailableForDebtor(debt.bestChannel, {
+                  email: debt.debtor.email,
+                  phones: debt.debtor.phones,
+                  whatsappOptIn: debt.debtor.whatsappOptIn
+                }) ? (
+                  <span className="mt-1 block text-xs text-amber-700 dark:text-amber-400">
+                    Falta información de contacto para este canal.{" "}
+                    <Link
+                      className="underline"
+                      href={`/debtors/${debt.debtor.id}` as Route}
+                    >
+                      Editar deudor
+                    </Link>
+                  </span>
+                ) : !debt.bestChannel ? (
+                  <span className="mt-1 block text-xs text-slate-500">
+                    Agrega email o teléfono en el perfil del deudor.
+                  </span>
+                ) : null}
+              </dd>
             </div>
           </dl>
           {debt.debtor ? (

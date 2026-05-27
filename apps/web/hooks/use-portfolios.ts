@@ -57,6 +57,30 @@ export function useDebtor(id: string) {
   });
 }
 
+export function useUpdateDebtor(debtorId: string) {
+  const client = useApiClient();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (body: {
+      name?: string;
+      email?: string;
+      phones?: string[];
+      whatsapp_opt_in?: boolean;
+    }) =>
+      patchApi<ApiItemResponse<Debtor>>(
+        client,
+        `/api/v1/debtors/${debtorId}`,
+        body
+      ),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["debtor", debtorId] });
+      void queryClient.invalidateQueries({ queryKey: ["debts"] });
+      void queryClient.invalidateQueries({ queryKey: ["portfolio"] });
+    }
+  });
+}
+
 export function useCreatePortfolio() {
   const client = useApiClient();
   const queryClient = useQueryClient();

@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  bestChannelForScores,
   calculatePriorityScore,
   calculateRecoveryScore,
-  deriveManagementSegment
+  deriveManagementSegment,
+  isContactChannelAvailable,
+  rankPreferredChannels
 } from "./scoring-engine";
 
 describe("calculateRecoveryScore", () => {
@@ -64,5 +67,41 @@ describe("deriveManagementSegment", () => {
         amount_outstanding: 1_000_000
       })
     ).toBe("high");
+  });
+});
+
+describe("bestChannelForScores", () => {
+  it("prefiere voz con teléfono cuando el score prioriza voz y no hay email", () => {
+    const channel = bestChannelForScores(30, 80, {
+      has_whatsapp: false,
+      has_phone: true,
+      has_email: false
+    });
+    expect(channel).toBe("voice");
+  });
+
+  it("salta email sugerido sin correo y usa whatsapp si hay opt-in y teléfono", () => {
+    const channel = bestChannelForScores(80, 45, {
+      has_whatsapp: true,
+      has_phone: true,
+      has_email: false
+    });
+    expect(channel).toBe("whatsapp");
+  });
+
+  it("devuelve null si no hay ningún dato de contacto", () => {
+    expect(
+      bestChannelForScores(30, 80, {
+        has_whatsapp: false,
+        has_phone: false,
+        has_email: false
+      })
+    ).toBeNull();
+  });
+
+  it("rankPreferredChannels pone email al final aunque falten otros", () => {
+    const ranked = rankPreferredChannels(30, 80, false);
+    expect(ranked[ranked.length - 1]).toBe("email");
+    expect(isContactChannelAvailable("email", { has_whatsapp: false, has_phone: false, has_email: true })).toBe(true);
   });
 });

@@ -3,6 +3,7 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { useState } from "react";
+import { EditDebtorForm } from "../../../../components/debtors/EditDebtorForm";
 import { StatusBadge } from "../../../../components/shared/StatusBadge";
 import { CardSkeleton } from "../../../../components/shared/Skeleton";
 import { useConversation } from "../../../../hooks/use-notifications";
@@ -57,19 +58,17 @@ export default function DebtorDetailPage({
       </header>
 
       <article className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-        <dl className="grid gap-3 sm:grid-cols-2 text-sm">
-          <div>
-            <dt className="text-slate-500">Email</dt>
-            <dd>{debtor.email ?? "—"}</dd>
-          </div>
-          <div>
-            <dt className="text-slate-500">Teléfonos</dt>
-            <dd>{debtor.phones.join(", ") || "—"}</dd>
-          </div>
-          <div>
-            <dt className="text-slate-500">WhatsApp opt-in</dt>
-            <dd>{debtor.whatsappOptIn ? "Sí" : "No"}</dd>
-          </div>
+        <EditDebtorForm
+          debtorId={debtor.id}
+          initial={{
+            name: debtor.name,
+            email: debtor.email,
+            phones: debtor.phones,
+            whatsappOptIn: debtor.whatsappOptIn
+          }}
+          onSaved={() => void query.refetch()}
+        />
+        <dl className="mt-6 grid gap-3 border-t border-slate-100 pt-6 sm:grid-cols-2 text-sm dark:border-slate-800">
           <div>
             <dt className="text-slate-500">NIT / ID</dt>
             <dd>{debtor.taxId ?? "—"}</dd>

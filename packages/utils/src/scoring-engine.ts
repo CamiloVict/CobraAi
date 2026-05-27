@@ -123,14 +123,64 @@ export function deriveManagementSegment(
   return "low";
 }
 
+export type SuggestedContactChannel = "whatsapp" | "voice" | "email";
+
+export type ChannelAvailability = {
+  /** Opt-in de WhatsApp del deudor. */
+  has_whatsapp: boolean;
+  has_phone: boolean;
+  has_email: boolean;
+};
+
+/** Indica si tenemos datos para contactar por ese canal. */
+export function isContactChannelAvailable(
+  channel: SuggestedContactChannel,
+  availability: ChannelAvailability
+): boolean {
+  switch (channel) {
+    case "whatsapp":
+      return availability.has_whatsapp && availability.has_phone;
+    case "voice":
+      return availability.has_phone;
+    case "email":
+      return availability.has_email;
+    default:
+      return false;
+  }
+}
+
+/** Orden de preferencia según scores (sin mirar disponibilidad). */
+export function rankPreferredChannels(
+  recoveryScore: number,
+  priorityScore: number,
+  whatsappOptIn: boolean
+): SuggestedContactChannel[] {
+  const ranked: SuggestedContactChannel[] = [];
+  if (whatsappOptIn && priorityScore >= 40) ranked.push("whatsapp");
+  if (priorityScore > 70 || recoveryScore < 40) ranked.push("voice");
+  ranked.push("email");
+  return [...new Set(ranked)];
+}
+
+/**
+ * Primer canal recomendado que el deudor puede usar; null si no hay ningún dato de contacto.
+ */
 export function bestChannelForScores(
   recoveryScore: number,
   priorityScore: number,
-  hasWhatsapp: boolean
-): "whatsapp" | "voice" | "email" {
-  if (hasWhatsapp && priorityScore >= 40) return "whatsapp";
-  if (priorityScore > 70 || recoveryScore < 40) return "voice";
-  return "email";
+  availability: ChannelAvailability
+): SuggestedContactChannel | null {
+  const ranked = rankPreferredChannels(
+    recoveryScore,
+    priorityScore,
+    availability.has_whatsapp
+  );
+  for (const channel of ranked) {
+    if (isContactChannelAvailable(channel, availability)) {
+      return channel;
+    }
+  }
+  return null;
 }
 
 export function planOperationalScores(input: {
@@ -141,10 +191,12 @@ export function planOperationalScores(input: {
   aging_days: number;
   debt_status?: string;
   has_whatsapp: boolean;
+  has_phone: boolean;
+  has_email: boolean;
 }): {
   priority_score: number;
   segment: ManagementSegment;
-  best_channel: "whatsapp" | "voice" | "email";
+  best_channel: SuggestedContactChannel | null;
 } {
   const priority_score = calculatePriorityScore(
     input.recovery_score,
@@ -159,10 +211,10 @@ export function planOperationalScores(input: {
     amount_outstanding: input.amount_outstanding,
     debt_status: input.debt_status
   });
-  const best_channel = bestChannelForScores(
-    input.recovery_score,
-    priority_score,
-    input.has_whatsapp
-  );
+  const best_channel = bestChannelForScores(input.recovery_score, priority_score, {
+    has_whatsapp: input.has_whatsapp,
+    has_phone: input.has_phone,
+    has_email: input.has_email
+  });
   return { priority_score, segment, best_channel };
 }

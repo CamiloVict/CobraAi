@@ -59,6 +59,25 @@ describe("StubAIScoringAdapter", () => {
     expect(oldBig.priority_score).toBeGreaterThan(recent.priority_score);
   });
 
+  it("elige voz si email no está disponible aunque sea el fallback por score", async () => {
+    const result = await adapter.scoreDebt({
+      debt_id: "d5",
+      tenant_id: "t1",
+      features: {
+        ...baseFeatures,
+        aging_days: 200,
+        has_whatsapp: false,
+        has_phone: true,
+        has_email: false,
+        promises_broken_count: 3,
+        previous_contacts_count: 8,
+        amount_outstanding: 500_000,
+        days_since_last_contact: 25
+      }
+    });
+    expect(result.best_channel).toBe("voice");
+  });
+
   it("uses voice or email when whatsapp is unavailable", async () => {
     const result = await adapter.scoreDebt({
       debt_id: "d4",
