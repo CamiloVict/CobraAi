@@ -4,10 +4,17 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useCreatePortfolio } from "../../hooks/use-portfolios";
 import { useWorkflowPackages } from "../../hooks/use-workflows";
-
 type Step = 1 | 2;
 
-export function CreatePortfolioModal(): React.ReactElement {
+type CreatePortfolioModalProps = {
+  triggerClassName?: string;
+  triggerLabel?: string;
+};
+
+export function CreatePortfolioModal({
+  triggerClassName,
+  triggerLabel = "Nuevo portafolio"
+}: CreatePortfolioModalProps = {}): React.ReactElement {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>(1);
   const [name, setName] = useState("");
@@ -51,11 +58,14 @@ export function CreatePortfolioModal(): React.ReactElement {
   return (
     <>
       <button
-        className="rounded-md bg-[#D85A30] px-4 py-2 text-sm font-medium text-white hover:bg-[#c24f29]"
+        className={
+          triggerClassName ??
+          "rounded-md bg-[#D85A30] px-4 py-2 text-sm font-medium text-white hover:bg-[#c24f29]"
+        }
         onClick={() => setOpen(true)}
         type="button"
       >
-        Nuevo portafolio
+        {triggerLabel}
       </button>
 
       {open

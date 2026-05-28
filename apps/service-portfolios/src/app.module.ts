@@ -5,6 +5,7 @@ import {
   RequestMethod
 } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
+import { join } from "node:path";
 import { TenantContextMiddleware } from "@cobrai/utils";
 import { AiScoringModule } from "./ai-scoring/ai-scoring.module";
 import { AuditModule } from "./audit/audit.module";
@@ -18,7 +19,14 @@ import { PrismaModule } from "./prisma/prisma.module";
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: [
+        join(__dirname, "../../../.env"),
+        join(__dirname, "../.env"),
+        ".env"
+      ]
+    }),
     PrismaModule,
     KafkaModule,
     AiScoringModule,

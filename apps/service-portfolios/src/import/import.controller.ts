@@ -43,12 +43,22 @@ export class ImportController {
     });
   }
 
+  @Get("active")
+  async getActive(@Param("portfolioId") portfolioId: string) {
+    const job = await this.importService.getActiveJobForPortfolio(portfolioId);
+    if (!job) {
+      throw new NotFoundException("Sin importación activa para este portafolio");
+    }
+    return successResponse(job);
+  }
+
   @Get(":jobId")
   async getProgress(
+    @Param("portfolioId") portfolioId: string,
     @Param("jobId") jobId: string
   ) {
-    const job = this.importService.getJob(jobId);
-    if (!job) {
+    const job = await this.importService.resolveJob(portfolioId, jobId);
+    if (!job || job.portfolio_id !== portfolioId) {
       throw new NotFoundException("Job de importación no encontrado");
     }
     return successResponse(job);

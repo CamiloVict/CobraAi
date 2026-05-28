@@ -1,12 +1,12 @@
 "use client";
 
 import { CreateOrganization, useAuth, useOrganizationList } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import {
   cobraiAuthShellStyle,
   cobraiClerkAppearance
 } from "../../lib/clerk-appearance";
+import { useResolveLandingAndRedirect } from "../../hooks/use-landing-redirect";
 
 type OnboardingFlowProps = {
   /** Org ya creada (p. ej. durante SignUp) pero aún no activa en sesión */
@@ -28,7 +28,6 @@ function OnboardingShell({
 export function OnboardingFlow({
   existingOrgId
 }: OnboardingFlowProps): React.ReactElement {
-  const router = useRouter();
   const { orgId, isLoaded: authLoaded } = useAuth();
   const { isLoaded: orgListLoaded, setActive, userMemberships } =
     useOrganizationList({
@@ -36,9 +35,10 @@ export function OnboardingFlow({
     });
   const activating = useRef(false);
 
+  useResolveLandingAndRedirect(Boolean(orgId));
+
   useEffect(() => {
     if (orgId) {
-      router.replace("/dashboard");
       return;
     }
 
@@ -54,19 +54,14 @@ export function OnboardingFlow({
     }
 
     activating.current = true;
-    void setActive({ organization: targetOrgId })
-      .then(() => {
-        router.replace("/dashboard");
-      })
-      .catch(() => {
-        activating.current = false;
-      });
+    void setActive({ organization: targetOrgId }).catch(() => {
+      activating.current = false;
+    });
   }, [
     authLoaded,
     existingOrgId,
     orgId,
     orgListLoaded,
-    router,
     setActive,
     userMemberships.data
   ]);
@@ -76,7 +71,7 @@ export function OnboardingFlow({
   }
 
   if (orgId) {
-    return <OnboardingShell message="Redirigiendo al dashboard…" />;
+    return <OnboardingShell message="Redirigiendo…" />;
   }
 
   const hasExistingOrg =
@@ -89,7 +84,7 @@ export function OnboardingFlow({
   return (
     <div style={cobraiAuthShellStyle}>
       <CreateOrganization
-        afterCreateOrganizationUrl="/dashboard"
+        afterCreateOrganizationUrl="/portfolios"
         appearance={cobraiClerkAppearance}
         skipInvitationScreen
       />

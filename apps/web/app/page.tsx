@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { LandingPage } from "../components/landing/LandingPage";
+import { resolveServerLandingPath } from "../lib/server/resolve-landing-path";
 
 export const metadata: Metadata = {
   title: "CobraAI — Cobranza inteligente para LATAM",
@@ -20,7 +21,7 @@ export default async function HomePage(): Promise<React.ReactElement> {
   const { userId, orgId } = await auth();
 
   if (userId && orgId) {
-    redirect("/dashboard");
+    redirect(await resolveServerLandingPath());
   }
 
   if (userId && !orgId) {

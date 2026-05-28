@@ -1,6 +1,7 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { OnboardingFlow } from "../../../components/auth/OnboardingFlow";
+import { resolveServerLandingPath } from "../../../lib/server/resolve-landing-path";
 
 export default async function OnboardingPage(): Promise<React.ReactElement> {
   const { userId, orgId } = await auth();
@@ -10,7 +11,7 @@ export default async function OnboardingPage(): Promise<React.ReactElement> {
   }
 
   if (orgId) {
-    redirect("/dashboard");
+    redirect(await resolveServerLandingPath());
   }
 
   let existingOrgId: string | undefined;

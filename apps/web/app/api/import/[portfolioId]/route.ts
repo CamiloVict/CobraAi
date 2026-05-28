@@ -1,12 +1,10 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
+import { portfoliosImportBaseUrl } from "../../../../lib/parse-import-job";
+
 function portfoliosBaseUrl(): string {
-  return (
-    process.env.SERVICE_PORTFOLIOS_URL ??
-    process.env.NEXT_PUBLIC_API_URL?.replace(":3000", ":3001") ??
-    "http://localhost:3001"
-  ).replace(/\/$/, "");
+  return portfoliosImportBaseUrl();
 }
 
 async function authHeaders(): Promise<HeadersInit> {

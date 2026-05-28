@@ -1,9 +1,20 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "@cobrai/db";
 import type { Debtor } from "@cobrai/db";
+import { Prisma } from "@prisma/client";
 import { normalizePhoneE164 } from "@cobrai/utils";
 import type { UpdateDebtorDto } from "../debts/dto/debt.dto";
 import { ScoringService } from "../ai-scoring/scoring.service";
+
+type UpsertDebtorInput = {
+  name: string;
+  external_ref?: string;
+  debtor_type?: "person" | "company";
+  debtor_tax_id?: string;
+  phones?: string[];
+  debtor_email?: string;
+  whatsapp_opt_in?: boolean;
+};
 
 @Injectable()
 export class DebtorsService {
@@ -70,48 +81,134 @@ export class DebtorsService {
 
   async upsertForDebt(
     tenantId: string,
-    input: {
-      name: string;
-      external_ref?: string;
-      debtor_type?: "person" | "company";
-      debtor_tax_id?: string;
-      phones?: string[];
-      debtor_email?: string;
-      whatsapp_opt_in?: boolean;
-    }
+    input: UpsertDebtorInput
   ): Promise<Debtor> {
-    if (input.debtor_tax_id) {
-      const byTax = await this.prisma.debtor.findFirst({
-        where: { tenantId, taxId: input.debtor_tax_id, deletedAt: null }
-      });
-      if (byTax) {
-        return byTax;
+    const externalRef = input.external_ref?.trim() || undefined;
+    const taxId = input.debtor_tax_id?.trim() || undefined;
+    const name = input.name?.trim();
+
+    if (taxId) {
+      const byTax = await this.findActiveDebtor(tenantId, { taxId });
+      if (byTax) return byTax;
+
+      const archived = await this.findArchivedDebtor(tenantId, { taxId });
+      if (archived) {
+        return this.reactivateDebtor(archived, input, { taxId, externalRef });
       }
     }
 
-    if (input.external_ref) {
-      const byRef = await this.prisma.debtor.findFirst({
-        where: { tenantId, externalRef: input.external_ref, deletedAt: null }
-      });
-      if (byRef) {
-        return byRef;
+    if (externalRef) {
+      const byRef = await this.findActiveDebtor(tenantId, { externalRef });
+      if (byRef) return byRef;
+
+      const archived = await this.findArchivedDebtor(tenantId, { externalRef });
+      if (archived) {
+        return this.reactivateDebtor(archived, input, { taxId, externalRef });
       }
     }
 
-    const phones = (input.phones ?? [])
+    if (name) {
+      const byName = await this.findActiveDebtor(tenantId, { name });
+      if (byName) return byName;
+    }
+
+    const phones = this.normalizePhones(input.phones);
+
+    try {
+      return await this.prisma.debtor.create({
+        data: {
+          tenantId,
+          name: name ?? input.name,
+          externalRef,
+          type: input.debtor_type ?? "person",
+          taxId,
+          phones,
+          email: input.debtor_email,
+          whatsappOptIn: input.whatsapp_opt_in ?? false
+        }
+      });
+    } catch (error) {
+      if (!this.isUniqueConstraintError(error)) {
+        throw error;
+      }
+
+      const existing = await this.findAnyDebtor(tenantId, {
+        externalRef,
+        taxId
+      });
+      if (!existing) {
+        throw error;
+      }
+
+      if (existing.deletedAt) {
+        return this.reactivateDebtor(existing, input, { taxId, externalRef });
+      }
+      return existing;
+    }
+  }
+
+  private normalizePhones(phones: string[] | undefined): string[] {
+    return (phones ?? [])
       .map((p) => normalizePhoneE164(p))
       .filter((p): p is string => Boolean(p));
+  }
 
-    return this.prisma.debtor.create({
+  private isUniqueConstraintError(error: unknown): boolean {
+    return (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    );
+  }
+
+  private findActiveDebtor(
+    tenantId: string,
+    where: { taxId?: string; externalRef?: string; name?: string }
+  ) {
+    return this.prisma.debtor.findFirst({
+      where: { tenantId, deletedAt: null, ...where }
+    });
+  }
+
+  private findArchivedDebtor(
+    tenantId: string,
+    where: { taxId?: string; externalRef?: string }
+  ) {
+    return this.prisma.debtor.findFirst({
+      where: { tenantId, deletedAt: { not: null }, ...where }
+    });
+  }
+
+  private findAnyDebtor(
+    tenantId: string,
+    input: { taxId?: string; externalRef?: string }
+  ) {
+    const or: Prisma.DebtorWhereInput[] = [];
+    if (input.taxId) or.push({ taxId: input.taxId });
+    if (input.externalRef) or.push({ externalRef: input.externalRef });
+    if (or.length === 0) return Promise.resolve(null);
+
+    return this.prisma.debtor.findFirst({
+      where: { tenantId, OR: or }
+    });
+  }
+
+  private async reactivateDebtor(
+    debtor: Debtor,
+    input: UpsertDebtorInput,
+    ids: { taxId?: string; externalRef?: string }
+  ): Promise<Debtor> {
+    const phones = this.normalizePhones(input.phones);
+    return this.prisma.debtor.update({
+      where: { id: debtor.id },
       data: {
-        tenantId,
-        name: input.name,
-        externalRef: input.external_ref,
-        type: input.debtor_type ?? "person",
-        taxId: input.debtor_tax_id,
-        phones,
-        email: input.debtor_email,
-        whatsappOptIn: input.whatsapp_opt_in ?? false
+        deletedAt: null,
+        name: input.name?.trim() || debtor.name,
+        externalRef: ids.externalRef ?? debtor.externalRef,
+        taxId: ids.taxId ?? debtor.taxId,
+        type: input.debtor_type ?? debtor.type,
+        phones: phones.length > 0 ? phones : undefined,
+        email: input.debtor_email ?? debtor.email,
+        whatsappOptIn: input.whatsapp_opt_in ?? debtor.whatsappOptIn
       }
     });
   }

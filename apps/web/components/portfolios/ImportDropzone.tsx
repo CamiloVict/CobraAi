@@ -8,10 +8,14 @@ import { cn } from "../../lib/utils";
 
 export function ImportDropzone({
   portfolioId,
-  portfolioName
+  portfolioName,
+  disabled = false,
+  disabledHint
 }: {
   portfolioId: string;
   portfolioName?: string;
+  disabled?: boolean;
+  disabledHint?: string;
 }) {
   const { trackJob } = useImportJobs();
   const [dragging, setDragging] = useState(false);
@@ -19,6 +23,7 @@ export function ImportDropzone({
 
   const upload = useCallback(
     async (file: File) => {
+      if (disabled) return;
       setUploading(true);
       try {
         const form = new FormData();
@@ -30,18 +35,27 @@ export function ImportDropzone({
         });
         const json = (await res.json()) as {
           success?: boolean;
-          data?: { job_id: string };
+          data?: { job_id: string; estimated_rows?: number; status?: string };
           error?: { message?: string };
         };
         if (!res.ok || !json.success || !json.data?.job_id) {
           throw new Error(json.error?.message ?? "Error al importar");
         }
+        const estimated = json.data.estimated_rows ?? 0;
         trackJob({
           portfolioId,
           jobId: json.data.job_id,
           portfolioName,
           fileName: file.name,
-          startedAt: new Date().toISOString()
+          startedAt: new Date().toISOString(),
+          snapshot: {
+            status: json.data.status ?? "queued",
+            estimated_rows: estimated,
+            processed_rows: 0,
+            success_rows: 0,
+            error_rows: 0,
+            errors: []
+          }
         });
         toast.success("Importación en curso — puedes cambiar de pestaña");
       } catch (err) {
@@ -50,8 +64,10 @@ export function ImportDropzone({
         setUploading(false);
       }
     },
-    [portfolioId, portfolioName, trackJob]
+    [disabled, portfolioId, portfolioName, trackJob]
   );
+
+  const isDisabled = disabled || uploading;
 
   const onDrop = useCallback(
     (e: React.DragEvent) => {
@@ -66,28 +82,40 @@ export function ImportDropzone({
   return (
     <label
       className={cn(
-        "flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-10 text-center transition",
-        dragging
-          ? "border-[#D85A30] bg-[#D85A30]/5"
-          : "border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-900",
-        uploading && "pointer-events-none opacity-60"
+        "flex min-h-[200px] flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center transition lg:min-h-[240px]",
+        isDisabled
+          ? "cursor-not-allowed border-slate-200 bg-slate-50 opacity-70 dark:border-slate-800 dark:bg-slate-900/50"
+          : "cursor-pointer border-slate-300 bg-white dark:border-slate-700 dark:bg-slate-900",
+        !isDisabled && dragging && "border-[#D85A30] bg-[#D85A30]/5"
       )}
       onDragLeave={() => setDragging(false)}
       onDragOver={(e) => {
+        if (isDisabled) return;
         e.preventDefault();
         setDragging(true);
       }}
       onDrop={onDrop}
     >
-      <Upload className="h-10 w-10 text-[#D85A30]" />
+      <Upload
+        className={cn(
+          "h-10 w-10",
+          isDisabled ? "text-slate-400" : "text-[#D85A30]"
+        )}
+      />
       <p className="mt-3 text-sm font-medium text-slate-900 dark:text-slate-100">
-        Arrastra CSV, Excel o PDF aquí
+        {isDisabled && disabledHint
+          ? "Subida pausada"
+          : "Arrastra CSV, Excel o PDF aquí"}
       </p>
-      <p className="mt-1 text-xs text-slate-500">o haz clic para seleccionar</p>
+      <p className="mt-1 text-xs text-slate-500">
+        {isDisabled && disabledHint
+          ? disabledHint
+          : "o haz clic para seleccionar"}
+      </p>
       <input
         accept=".csv,.xlsx,.xls,.pdf"
         className="sr-only"
-        disabled={uploading}
+        disabled={isDisabled}
         onChange={(e) => {
           const file = e.target.files?.[0];
           if (file) void upload(file);
@@ -98,60 +126,3 @@ export function ImportDropzone({
   );
 }
 
-export function ImportProgress({
-  portfolioId
-}: {
-  portfolioId: string;
-}) {
-  const { getJobForPortfolio } = useImportJobs();
-  const job = getJobForPortfolio(portfolioId);
-
-  if (!job) return null;
-
-  const isActive = !["completed", "failed"].includes(job.status);
-  const totalRows = job.estimated_rows || job.processed_rows;
-  const progressPct =
-    totalRows > 0
-      ? Math.min(100, Math.round((job.processed_rows / totalRows) * 100))
-      : isActive
-        ? 8
-        : 100;
-
-  return (
-    <section className="mt-6 rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="text-sm font-semibold">Progreso de importación</h3>
-        {isActive ? (
-          <span className="rounded-full bg-[#D85A30]/10 px-2 py-0.5 text-xs font-medium text-[#D85A30]">
-            En segundo plano
-          </span>
-        ) : null}
-      </div>
-      {job.fileName ? (
-        <p className="mt-1 truncate text-xs text-slate-500">{job.fileName}</p>
-      ) : null}
-      <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-        Estado: <span className="font-medium capitalize">{job.status}</span>
-      </p>
-      {isActive ? (
-        <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
-          <div
-            className="h-full rounded-full bg-[#D85A30] transition-all duration-500"
-            style={{ width: `${progressPct}%` }}
-          />
-        </div>
-      ) : null}
-      <ul className="mt-2 space-y-1 text-sm text-slate-500">
-        <li>Procesadas: {job.processed_rows}</li>
-        <li>Exitosas: {job.success_rows}</li>
-        <li>Errores: {job.error_rows}</li>
-      </ul>
-      {isActive ? (
-        <p className="mt-3 text-xs text-slate-400">
-          La importación continúa aunque cambies de página o de pestaña del
-          navegador.
-        </p>
-      ) : null}
-    </section>
-  );
-}

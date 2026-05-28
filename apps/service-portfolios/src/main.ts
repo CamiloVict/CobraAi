@@ -13,7 +13,7 @@ async function bootstrap(): Promise<void> {
     })
   );
 
-  const port = Number(process.env.PORT ?? 3001);
+  const port = Number(process.env.PORT ?? 3011);
   const host = process.env.HOST ?? "0.0.0.0";
   await app.listen(port, host);
   Logger.log(
